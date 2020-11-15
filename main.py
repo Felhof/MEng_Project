@@ -6,12 +6,13 @@ from stable_baselines.common.cmd_util import make_vec_env
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from go_left_env import GoLeftEnv
+from gridworld import GridWorld
 
 # Create log dir
 log_dir = "/tmp/gym/"
 os.makedirs(log_dir, exist_ok=True)
 
-env = GoLeftEnv()
+env = GridWorld()
 # If the environment don't follow the interface, an error will be thrown
 check_env(env, warn=True)
 
