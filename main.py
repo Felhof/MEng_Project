@@ -7,12 +7,16 @@ from stable_baselines.common.cmd_util import make_vec_env
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from go_left_env import GoLeftEnv
 from gridworld import GridWorld
+from resource_manager import ResourceManager
 
 # Create log dir
 log_dir = "/tmp/gym/"
 os.makedirs(log_dir, exist_ok=True)
 
-env = GridWorld()
+#rewards = {(1, 0): -1, (0,2): -1, (2, 1): -1, (1, 3): -1, (3, 2): -1, (2, 4): -1}
+
+#env = GridWorld(grid_size=5, rewards=rewards, start_state=(0, 0), goal_state=(4, 4))
+env = ResourceManager()
 # If the environment don't follow the interface, an error will be thrown
 check_env(env, warn=True)
 

@@ -83,8 +83,8 @@ class GridWorld(gym.Env):
           raise NotImplementedError()
 
         symbols = []
-        for x in range(self.grid_size):
-            for y in range(self.grid_size):
+        for y in range(self.grid_size):
+            for x in range(self.grid_size):
                 if self.agent_pos == (x, y):
                     if self.agent_pos == self.goal_state:
                         symbols.append("V")
