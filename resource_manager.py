@@ -44,11 +44,9 @@ class ResourceManager(gym.Env):
         self.tasks_in_processing = np.array([0] * task_count)
         self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
 
-        self.action_space = spaces.Box(low=0, high=1,
-                                       shape=(task_count,), dtype=np.int)
+        self.action_space = spaces.MultiBinary(task_count)
 
-        self.observation_space = spaces.Box(low=0, high=100,
-                                            shape=(task_count + 1,), dtype=np.int)
+        self.observation_space = spaces.MultiDiscrete([2]*task_count + [resource_limit + 1])
 
     def reset(self):
         """
@@ -61,7 +59,8 @@ class ResourceManager(gym.Env):
         self.tasks_in_processing = np.array([0] * self.task_count)
 
         self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
-        return np.array(self.arrivals + [self.resources_available])
+        obs = np.array(self.arrivals + [self.resources_available])
+        return obs
 
     def step(self, action):
 
