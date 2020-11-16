@@ -13,9 +13,6 @@ from resource_manager import ResourceManager
 log_dir = "/tmp/gym/"
 os.makedirs(log_dir, exist_ok=True)
 
-#rewards = {(1, 0): -1, (0,2): -1, (2, 1): -1, (1, 3): -1, (3, 2): -1, (2, 4): -1}
-
-#env = GridWorld(grid_size=5, rewards=rewards, start_state=(0, 0), goal_state=(4, 4))
 env = ResourceManager()
 # If the environment don't follow the interface, an error will be thrown
 check_env(env, warn=True)
@@ -26,7 +23,7 @@ env = make_vec_env(lambda: env, n_envs=1, monitor_dir=log_dir)
 # Create callbacks
 auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir)
 
-model = ACKTR('MlpPolicy', env, verbose=1)\
+model = ACKTR('MlpPolicy', env, verbose=1, tensorboard_log=log_dir)
 
 with ProgressBarManager(10000) as progress_callback:
     # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])

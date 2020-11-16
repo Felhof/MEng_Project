@@ -18,7 +18,7 @@ class ResourceManager(gym.Env):
     LEFT = 3
 
     def __init__(self, resource_count=3, task_count=3, rewards=[3, 2, 1], resource_limit=5,
-                 task_arrival_p=[0.5, 0.5, 0.5], task_departure_p=[0.3, 0.3, 0.3]):
+                 task_arrival_p=[0.5, 0.5, 0.5], task_departure_p=[0.3, 0.3, 0.3], max_timesteps=500):
         """
         :param K: (int) amount of resources
         :param M: (int) amount of tasks
@@ -28,7 +28,11 @@ class ResourceManager(gym.Env):
         super(ResourceManager, self).__init__()
 
         self.last_action = []
+        self.last_departed = [0, 0, 0]
         self.last_reward = 0
+
+        self.max_timesteps = max_timesteps
+        self.current_timestep = 0
 
         self.resource_limit = resource_limit
         self.rewards = rewards
@@ -51,12 +55,12 @@ class ResourceManager(gym.Env):
         Important: the observation must be a numpy array
         :return: (np.array)
         """
+        self.current_timestep = 0
+
         self.resources_available = self.resource_limit
         self.tasks_in_processing = np.array([0] * self.task_count)
 
         self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
-        obs = np.array([self.arrivals] + [self.resources_available])
-        print(np.shape(obs))
         return np.array(self.arrivals + [self.resources_available])
 
     def step(self, action):
@@ -73,6 +77,7 @@ class ResourceManager(gym.Env):
 
         for idx, count in enumerate(self.tasks_in_processing):
             departing = binom.rvs(count, self.task_departure_p[idx])
+            self.last_departed[idx] = departing
             self.tasks_in_processing[idx] -= departing
             self.resources_available += departing
 
@@ -82,14 +87,14 @@ class ResourceManager(gym.Env):
 
         observation = np.array(self.arrivals + [self.resources_available])
 
-        # Are we at the left of the grid?
-        done = False
+        self.last_action = action
+        self.last_reward = reward
+
+        self.current_timestep += 1
+        done = (self.current_timestep == self.max_timesteps)
 
         # Optionally we can pass additional info, we are not using that for now
         info = {}
-
-        self.last_action = action
-        self.last_reward = reward
 
         return observation, reward, done, info
 
@@ -97,11 +102,12 @@ class ResourceManager(gym.Env):
         if mode != 'console':
             raise NotImplementedError()
 
+        print("Last action: ", self.last_action)
+        print("Last Reward: ", self.last_reward)
+        print("Last departed: ", self.last_departed)
         print("Resources available: ", self.resources_available)
         print("Tasks in processing: ", self.tasks_in_processing)
         print("Arrivals: ", self.arrivals)
-        print("Last action: ", self.last_action)
-        print("Last Reward: ", self.last_reward)
 
     def close(self):
         pass
