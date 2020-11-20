@@ -3,12 +3,11 @@ import os
 from stable_baselines.common.env_checker import check_env
 from stable_baselines import DQN, PPO2, A2C, ACKTR
 from stable_baselines.common.cmd_util import make_vec_env
-
-import random
-from scipy.stats import uniform
+import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_manager import ResourceManager
+from resource_allocation_problem import ResourceAllocationProblem
 
 
 def main(training_steps=50000):
@@ -16,8 +15,9 @@ def main(training_steps=50000):
     log_dir = "/tmp/gym/"
     os.makedirs(log_dir, exist_ok=True)
 
-    env = ResourceManager(task_count, rewards, resource_limit, task_arrival_p,
-                          task_departure_p, max_timesteps)
+    ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
+                                           task_arrival_p, task_departure_p)
+    env = ResourceManager(ra_problem, max_timesteps)
     # If the environment doesn't follow the interface, an error will be thrown
     check_env(env, warn=True)
 
@@ -50,11 +50,11 @@ def main(training_steps=50000):
             break
 
 
-task_count = 10
-rewards = [30, 23, 17, 12, 9, 7, 5, 3, 2, 1]
-resource_limit = 8
-task_arrival_p = [0.6, 0.8, 0.8, 0.7, 0.55, 0.9, 0.9, 0.8, 0.9, 0.9]
-task_departure_p = [0.1, 0.2, 0.2, 0.15, 0.15, 0.25, 0.3, 0.3, 0.3, 0.35]
+rewards = np.array([30, 23, 17, 12, 9, 7, 5, 3, 2, 1])
+resource_requirements = np.ones((10, 5))
+max_resource_availabilities = np.ones(5) * 7
+task_arrival_p = np.array([0.6, 0.8, 0.8, 0.7, 0.55, 0.9, 0.9, 0.8, 0.9, 0.9])
+task_departure_p = np.array([0.1, 0.2, 0.2, 0.15, 0.15, 0.25, 0.3, 0.3, 0.3, 0.35])
 max_timesteps = 500
 
 #task_count = 2

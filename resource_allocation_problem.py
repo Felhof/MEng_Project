@@ -23,8 +23,8 @@ class ResourceAllocationProblem:
         self.task_count = len(rewards)
         self.resource_count = len(max_resource_availabilities)
         self.current_resource_availabilities = max_resource_availabilities
-        self.tasks_in_processing = np.zeros(self.task_count)
-        self.tasks_waiting = np.zeros(self.task_count)
+        self.tasks_in_processing = np.zeros(self.task_count).astype(int)
+        self.tasks_waiting = np.zeros(self.task_count).astype(int)
 
     def get_max_resource_availabilities(self):
         return self.max_resource_availabilities
@@ -51,7 +51,7 @@ class ResourceAllocationProblem:
 
     def reset(self):
         self.current_resource_availabilities = self.max_resource_availabilities
-        self.tasks_in_processing = np.zeros(self.task_count)
+        self.tasks_in_processing = np.zeros(self.task_count).astype(int)
         self.tasks_waiting = self.new_tasks()
 
     def timestep(self, allocations):
@@ -60,19 +60,27 @@ class ResourceAllocationProblem:
         """
         finished_tasks = self.finished_tasks()
         self.tasks_in_processing -= finished_tasks
+
+        resources_used_by_finished_tasks = self.calculate_resources_used(finished_tasks)
+
         self.set_current_resource_availabilities(
-            self.current_resource_availabilities + (finished_tasks * self.resource_requirements)
+            self.current_resource_availabilities + resources_used_by_finished_tasks
         )
         self.tasks_in_processing += allocations
+        resources_used_by_allocated_tasks = self.calculate_resources_used(allocations)
         self.set_current_resource_availabilities(
-            self.current_resource_availabilities - (allocations * self.resource_requirements)
+            self.current_resource_availabilities - resources_used_by_allocated_tasks
         )
 
         self.tasks_waiting = self.new_tasks()
 
     def new_tasks(self):
-        return np.random.binomial(self.task_count, self.task_arrival_p)
+        return np.random.binomial(1, self.task_arrival_p)
 
     def finished_tasks(self):
         return np.random.binomial(self.tasks_in_processing, self.task_departure_p)
+
+    def calculate_resources_used(self, tasks):
+        resources_used = tasks * np.transpose(self.resource_requirements)
+        return resources_used.sum(axis=1)
 

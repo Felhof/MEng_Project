@@ -1,7 +1,6 @@
 import numpy as np
 import gym
 from gym import spaces
-from scipy.stats import bernoulli, binom
 
 
 class ResourceManager(gym.Env):
@@ -22,8 +21,10 @@ class ResourceManager(gym.Env):
         self.current_timestep = 0
 
         self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
+        resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
+        new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
         self.observation_space = spaces.MultiDiscrete(
-            np.append(ra_problem.get_max_resource_availabilities(), np.ones(ra_problem.get_task_count))
+            np.append(resource_observation_dim, new_task_observation_dim)
         )
 
     def reset(self):
@@ -37,16 +38,18 @@ class ResourceManager(gym.Env):
 
     def step(self, action):
 
-        allocations = action & self.ra_problem.get_tasks_waiting()
+        tasks_waiting = self.ra_problem.get_tasks_waiting()
+        allocations = action.astype(int) & tasks_waiting
 
-        resources_left = self.ra_problem.get_current_resource_availabilities() - (
-                allocations * self.ra_problem.get_resource_requirements()
-        )
+        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
+        resources_used_by_allocations = self.ra_problem.calculate_resources_used(allocations)
+
+        resources_left = resource_availabilities - resources_used_by_allocations
 
         if (resources_left < 0).any():
-            allocations = np.zeros(len(allocations))
+            allocations = np.zeros(len(allocations)).astype(int)
 
-        reward = np.sum(allocations * self.ra_problem.get_rewards())
+        reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
 
         self.ra_problem.timestep(allocations)
 
@@ -75,7 +78,7 @@ class ResourceManager(gym.Env):
         pass
 
     def create_observation(self):
-        new_tasks = self.ra_problem.get_new_tasks()
+        new_tasks = self.ra_problem.get_tasks_waiting()
         resource_availabilities = self.ra_problem.get_current_resource_availabilities()
-        observation = np.array(resource_availabilities + new_tasks)
+        observation = np.append(resource_availabilities, new_tasks)
         return observation
