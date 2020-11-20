@@ -1,47 +1,31 @@
 import numpy as np
 import gym
 from gym import spaces
-from scipy.stats import bernoulli, binom
 
 
 class ResourceManager(gym.Env):
     """
     Custom Environment that follows gym interface.
-    This is a simple env where the agent must learn to go always left.
     """
     # Because of google colab, we cannot implement the GUI ('human' render mode)
     metadata = {'render.modes': ['console']}
+
     # Define constants for clearer code
 
-    def __init__(self, task_count=3, rewards=[3, 2, 1], resource_limit=5,
-                 task_arrival_p=[0.5, 0.5, 0.5], task_departure_p=[0.3, 0.3, 0.3], max_timesteps=500):
+    def __init__(self, ra_problem, max_timesteps=500):
         """
-        :param K: (int) amount of resources
-        :param M: (int) amount of tasks
-        :param U: (int) rewards for tasks
-        :param resource_availability: (int) how often a resource can be allocated
         """
         super(ResourceManager, self).__init__()
-
-        self.last_action = []
-        self.last_departed = [0]*task_count
-        self.last_reward = 0
-
+        self.ra_problem = ra_problem
         self.max_timesteps = max_timesteps
         self.current_timestep = 0
 
-        self.resource_limit = resource_limit
-        self.rewards = rewards
-        self.task_count = task_count
-        self.task_arrival_p = task_arrival_p
-        self.task_departure_p = task_departure_p
-        self.resources_available = resource_limit
-        self.tasks_in_processing = np.array([0] * task_count)
-        self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
-
-        self.action_space = spaces.MultiBinary(task_count)
-
-        self.observation_space = spaces.MultiDiscrete([2]*task_count + [resource_limit + 1])
+        self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
+        resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
+        new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
+        self.observation_space = spaces.MultiDiscrete(
+            np.append(resource_observation_dim, new_task_observation_dim)
+        )
 
     def reset(self):
         """
@@ -49,40 +33,27 @@ class ResourceManager(gym.Env):
         :return: (np.array)
         """
         self.current_timestep = 0
-
-        self.resources_available = self.resource_limit
-        self.tasks_in_processing = np.array([0] * self.task_count)
-
-        self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
-        obs = np.array(self.arrivals + [self.resources_available])
-        return obs
+        self.ra_problem.reset()
+        return self.create_observation()
 
     def step(self, action):
 
-        reward = 0
-        new_tasks = np.array([0]*self.task_count)
-        resource_cost = 0
+        tasks_waiting = self.ra_problem.get_tasks_waiting()
+        allocations = action.astype(int) & tasks_waiting
 
-        for idx, (allocation, task) in enumerate(zip(list(action), self.arrivals)):
-            if allocation == 1 and task == 1 and self.resources_available > 0:
-                new_tasks[idx] += 1
-                resource_cost += 1
-                reward += self.rewards[idx]
+        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
+        resources_used_by_allocations = self.ra_problem.calculate_resources_used(allocations)
 
-        for idx, count in enumerate(self.tasks_in_processing):
-            departing = binom.rvs(count, self.task_departure_p[idx])
-            self.last_departed[idx] = departing
-            self.tasks_in_processing[idx] -= departing
-            self.resources_available += departing
+        resources_left = resource_availabilities - resources_used_by_allocations
 
-        self.tasks_in_processing += new_tasks
-        self.resources_available -= resource_cost
-        self.arrivals = [bernoulli.rvs(p) for p in self.task_arrival_p]
+        if (resources_left < 0).any():
+            allocations = np.zeros(len(allocations)).astype(int)
 
-        observation = np.array(self.arrivals + [self.resources_available])
+        reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
 
-        self.last_action = action
-        self.last_reward = reward
+        self.ra_problem.timestep(allocations)
+
+        observation = self.create_observation()
 
         self.current_timestep += 1
         done = (self.current_timestep == self.max_timesteps)
@@ -105,3 +76,9 @@ class ResourceManager(gym.Env):
 
     def close(self):
         pass
+
+    def create_observation(self):
+        new_tasks = self.ra_problem.get_tasks_waiting()
+        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
+        observation = np.append(resource_availabilities, new_tasks)
+        return observation
