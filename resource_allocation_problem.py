@@ -26,6 +26,9 @@ class ResourceAllocationProblem:
         self.tasks_in_processing = np.zeros(self.task_count)
         self.tasks_waiting = np.zeros(self.task_count)
 
+    def get_max_resource_availabilities(self):
+        return self.max_resource_availabilities
+
     def get_current_resource_availabilities(self):
         return self.current_resource_availabilities
 
@@ -37,20 +40,24 @@ class ResourceAllocationProblem:
     def get_tasks_waiting(self):
         return self.tasks_waiting
 
+    def get_task_count(self):
+        return self.task_count
+
     def get_rewards(self):
         return self.rewards
 
     def get_resource_requirements(self):
         return self.resource_requirements
 
-    def start(self):
+    def reset(self):
+        self.current_resource_availabilities = self.max_resource_availabilities
+        self.tasks_in_processing = np.zeros(self.task_count)
         self.tasks_waiting = self.new_tasks()
 
     def timestep(self, allocations):
         """
         :param allocations: ([int]) length M list, for each tasks if resources are allocated to it or not
         """
-        allocations = min(allocations, self.tasks_waiting)
         finished_tasks = self.finished_tasks()
         self.tasks_in_processing -= finished_tasks
         self.set_current_resource_availabilities(
