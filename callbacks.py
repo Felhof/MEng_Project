@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from stable_baselines import DDPG
 from stable_baselines.ddpg.policies import LnMlpPolicy
@@ -88,3 +89,26 @@ class ProgressBarManager(object):
         self.pbar.n = self.total_timesteps
         self.pbar.update(0)
         self.pbar.close()
+
+
+class PlottingCallback(BaseCallback):
+    """
+    Callback for plotting the performance after training.
+
+    :param verbose: (int)
+    """
+    def __init__(self, log_dir, verbose=1):
+        super(PlottingCallback, self).__init__(verbose)
+        self.log_dir = log_dir
+        self._plot = None
+
+    def _on_training_end(self) -> bool:
+        # get the monitor's data
+        x, y = ts2xy(load_results(self.log_dir), 'timesteps')
+        plt.figure(figsize=(20, 10))
+        plt.plot(x, y, "b", label="RL Agent")
+        plt.legend()
+        plt.xlabel("episode")
+        plt.ylabel("cumulative reward")
+        plt.show()
+        plt.savefig("reward")
