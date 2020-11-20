@@ -12,12 +12,8 @@ class ResourceManager(gym.Env):
     # Because of google colab, we cannot implement the GUI ('human' render mode)
     metadata = {'render.modes': ['console']}
     # Define constants for clearer code
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
 
-    def __init__(self, resource_count=3, task_count=3, rewards=[3, 2, 1], resource_limit=5,
+    def __init__(self, task_count=3, rewards=[3, 2, 1], resource_limit=5,
                  task_arrival_p=[0.5, 0.5, 0.5], task_departure_p=[0.3, 0.3, 0.3], max_timesteps=500):
         """
         :param K: (int) amount of resources
@@ -28,7 +24,7 @@ class ResourceManager(gym.Env):
         super(ResourceManager, self).__init__()
 
         self.last_action = []
-        self.last_departed = [0, 0, 0]
+        self.last_departed = [0]*task_count
         self.last_reward = 0
 
         self.max_timesteps = max_timesteps
@@ -37,7 +33,6 @@ class ResourceManager(gym.Env):
         self.resource_limit = resource_limit
         self.rewards = rewards
         self.task_count = task_count
-        self.resource_count = resource_count
         self.task_arrival_p = task_arrival_p
         self.task_departure_p = task_departure_p
         self.resources_available = resource_limit
