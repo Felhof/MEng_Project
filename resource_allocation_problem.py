@@ -43,6 +43,9 @@ class ResourceAllocationProblem:
     def get_task_count(self):
         return self.task_count
 
+    def get_resource_count(self):
+        return self.resource_count
+
     def get_rewards(self):
         return self.rewards
 
@@ -84,3 +87,18 @@ class ResourceAllocationProblem:
         resources_used = tasks * np.transpose(self.resource_requirements)
         return resources_used.sum(axis=1)
 
+    def get_optimal_reward(self, observation):
+        free_resources = observation[0, :self.resource_count]
+        tasks_arrivals = observation[0, self.resource_count:]
+
+        optimum_reward = 0
+
+        for task_number, has_arrived in enumerate(tasks_arrivals):
+            if not has_arrived:
+                continue
+            resources_remaining = free_resources - self.resource_requirements[task_number]
+            if (resources_remaining >= 0).all():
+                free_resources = resources_remaining
+                optimum_reward += self.rewards[task_number]
+
+        return optimum_reward
