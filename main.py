@@ -1,11 +1,14 @@
 import os
 
+import matplotlib.pyplot as plt
+
 from stable_baselines.common.env_checker import check_env
 from stable_baselines import DQN, PPO2, A2C, ACKTR
 from stable_baselines.common.cmd_util import make_vec_env
+from stable_baselines.results_plotter import load_results, ts2xy
 import numpy as np
 
-from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
+from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager, PlottingCallback
 from resource_manager import ResourceManager
 from resource_allocation_problem import ResourceAllocationProblem
 
@@ -26,12 +29,22 @@ def main(training_steps=50000):
 
     # Create callbacks
     auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir)
+    #plotting_callback = PlottingCallback(log_dir)
 
     model = ACKTR('MlpPolicy', env, verbose=1, tensorboard_log=log_dir)
 
     with ProgressBarManager(training_steps) as progress_callback:
         # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
         model.learn(training_steps, callback=[progress_callback, auto_save_callback])
+
+    x, y = ts2xy(load_results(log_dir), 'timesteps')
+    plt.figure(figsize=(20, 10))
+    plt.plot(x, y, "b", label="RL Agent")
+    plt.legend()
+    plt.xlabel("episode")
+    plt.ylabel("cumulative reward")
+    plt.show()
+    plt.savefig("reward")
 
     # Test the trained agent
     obs = env.reset()
