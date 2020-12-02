@@ -3,7 +3,7 @@ import gym
 from gym import spaces
 
 
-class RAPEnvironment(gym.Env):
+class ResourceAllocationEnvironment(gym.Env):
     """
     Custom Environment that follows gym interface.
     """
@@ -15,7 +15,7 @@ class RAPEnvironment(gym.Env):
     def __init__(self, ra_problem, max_timesteps=500):
         """
         """
-        super(RAPEnvironment, self).__init__()
+        super(ResourceAllocationEnvironment, self).__init__()
         self.ra_problem = ra_problem
         self.max_timesteps = max_timesteps
         self.current_timestep = 0
@@ -23,8 +23,9 @@ class RAPEnvironment(gym.Env):
         self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
         resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
         new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
+        running_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
         self.observation_space = spaces.MultiDiscrete(
-            np.append(resource_observation_dim, new_task_observation_dim)
+            np.append(resource_observation_dim, np.append(new_task_observation_dim, running_task_observation_dim))
         )
 
     def reset(self):
@@ -34,7 +35,7 @@ class RAPEnvironment(gym.Env):
         """
         self.current_timestep = 0
         self.ra_problem.reset()
-        return self.create_observation()
+        return self.ra_problem.create_observation()
 
     def step(self, action):
 
@@ -49,11 +50,11 @@ class RAPEnvironment(gym.Env):
         if (resources_left < 0).any():
             allocations = np.zeros(len(allocations)).astype(int)
 
-        reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
+        reward = self.ra_problem.calculate_reward(allocations)
 
         self.ra_problem.timestep(allocations)
 
-        observation = self.create_observation()
+        observation = self.ra_problem.create_observation()
 
         self.current_timestep += 1
         done = (self.current_timestep == self.max_timesteps)
@@ -76,9 +77,3 @@ class RAPEnvironment(gym.Env):
 
     def close(self):
         pass
-
-    def create_observation(self):
-        new_tasks = self.ra_problem.get_tasks_waiting()
-        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
-        observation = np.append(resource_availabilities, new_tasks)
-        return observation

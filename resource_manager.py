@@ -2,14 +2,14 @@ import os
 import matplotlib.pyplot as plt
 
 from stable_baselines.common.env_checker import check_env
-from stable_baselines import ACKTR
+from stable_baselines import A2C
 from stable_baselines.common.cmd_util import make_vec_env
 from stable_baselines.results_plotter import load_results, ts2xy
 import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import RAPEnvironment
+from rap_environment import ResourceAllocationEnvironment
 
 
 class ResourceManager:
@@ -26,8 +26,8 @@ class ResourceManager:
         task_departure_p = rap["task_departure_p"]
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
-                                               task_arrival_p, task_departure_p)
-        env = RAPEnvironment(self.ra_problem, steps_per_episode)
+                                                    task_arrival_p, task_departure_p)
+        env = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(env, warn=True)
 
@@ -37,15 +37,15 @@ class ResourceManager:
         self.model = None
         self.training_steps = training_steps
 
-    def train_model(self, algorithm=ACKTR):
+    def train_model(self):
         # Create callbacks
         auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
-        self.model = algorithm('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
+        self.model = A2C('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
 
         with ProgressBarManager(self.training_steps) as progress_callback:
             # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
-            self.model.learn(self.training_steps, callback=[progress_callback, auto_save_callback])
+            self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback, auto_save_callback])
 
     def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward"):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
@@ -57,31 +57,42 @@ class ResourceManager:
         plt.show()
         plt.savefig(filename)
 
-    def test_model(self, n_steps=100, render=False):
-        true_rewards = []
-        optimal_rewards = []
-        obs = self.environment.reset()
-        for step in range(n_steps):
-            action, _ = self.model.predict(obs, deterministic=True)
-            optimal_rewards.append(self.ra_problem.get_optimal_reward(obs))
-            print("Step {}".format(step + 1))
-            print("Action: ", action)
-            obs, reward, done, info = self.environment.step(action)
-            print('obs=', obs, 'reward=', reward, 'done=', done)
-            true_rewards.append(reward)
+    def evaluate_model(self, n_episodes=10, episode_length=500, render=False):
+        print("Comparing Model to optimal strategy...")
+        model_rewards = [
+            self.get_model_solution(episode_length=episode_length, render=render) for _ in range(n_episodes)
+        ]
+        optimal_strategy_rewards = [
+            self.calculate_optimal_solution(episode_length=episode_length) for _ in range(n_episodes)
+        ]
+        print("In {0} episodes the model achieved an average reward of: {1}".format(
+            n_episodes,
+            np.mean(model_rewards)
+        ))
+        print("The optimal strategy achieved an average reward of: {1}".format(
+            n_episodes,
+            np.mean(optimal_strategy_rewards)
+        ))
+
+    def get_model_solution(self, episode_length=500, render=False):
+        reward = 0
+        observation = self.environment.reset()
+        for _ in range(episode_length):
+            action, _ = self.model.predict(observation, deterministic=True)
+            observation, r, _, _ = self.environment.step(action)
+            reward += r
             if render:
                 self.environment.render(mode='console')
-            if done:
-                # Note that the VecEnv resets automatically
-                # when a done signal is encountered
-                print("Goal reached!", "reward=", reward)
-                break
 
-        plt.figure(figsize=(20, 10))
-        plt.plot(range(len(true_rewards)), true_rewards, "b", label="Reward achieved by agent")
-        plt.plot(range(len(optimal_rewards)), optimal_rewards, "r", label="Optimum Reward")
-        plt.legend()
-        plt.xlabel("step")
-        plt.ylabel("reward")
-        plt.show()
-        plt.savefig("test")
+        return reward
+
+    def calculate_optimal_solution(self, episode_length=500):
+        self.ra_problem.reset()
+        observation = self.environment.reset()
+        reward = 0
+        for _ in range(episode_length):
+            action = self.ra_problem.get_heuristic_solution(observation)
+            observation, r, _, _ = self.environment.step(action)
+            reward += r
+
+        return reward
