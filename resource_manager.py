@@ -1,84 +1,98 @@
+import os
+import matplotlib.pyplot as plt
+
+from stable_baselines.common.env_checker import check_env
+from stable_baselines import A2C
+from stable_baselines.common.cmd_util import make_vec_env
+from stable_baselines.results_plotter import load_results, ts2xy
 import numpy as np
-import gym
-from gym import spaces
+
+from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
+from resource_allocation_problem import ResourceAllocationProblem
+from rap_environment import ResourceAllocationEnvironment
 
 
-class ResourceManager(gym.Env):
-    """
-    Custom Environment that follows gym interface.
-    """
-    # Because of google colab, we cannot implement the GUI ('human' render mode)
-    metadata = {'render.modes': ['console']}
+class ResourceManager:
 
-    # Define constants for clearer code
+    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
+        # Create log dir
+        self.log_dir = log_dir
+        os.makedirs(self.log_dir, exist_ok=True)
 
-    def __init__(self, ra_problem, max_timesteps=500):
-        """
-        """
-        super(ResourceManager, self).__init__()
-        self.ra_problem = ra_problem
-        self.max_timesteps = max_timesteps
-        self.current_timestep = 0
+        rewards = rap["rewards"]
+        resource_requirements = rap["resource_requirements"]
+        max_resource_availabilities = rap["max_resource_availabilities"]
+        task_arrival_p = rap["task_arrival_p"]
+        task_departure_p = rap["task_departure_p"]
 
-        self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
-        resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
-        new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
-        self.observation_space = spaces.MultiDiscrete(
-            np.append(resource_observation_dim, new_task_observation_dim)
-        )
+        self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
+                                                    task_arrival_p, task_departure_p)
+        env = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        # If the environment doesn't follow the interface, an error will be thrown
+        check_env(env, warn=True)
 
-    def reset(self):
-        """
-        Important: the observation must be a numpy array
-        :return: (np.array)
-        """
-        self.current_timestep = 0
+        # wrap it
+        self.environment = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)
+
+        self.model = None
+        self.training_steps = training_steps
+
+    def train_model(self):
+        # Create callbacks
+        auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
+
+        self.model = A2C('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
+
+        with ProgressBarManager(self.training_steps) as progress_callback:
+            # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
+            self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback, auto_save_callback])
+
+    def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward"):
+        x, y = ts2xy(load_results(self.log_dir), 'timesteps')
+        plt.figure(figsize=(20, 10))
+        plt.plot(x, y, "b", label="RL Agent")
+        plt.legend()
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.show()
+        plt.savefig(filename)
+
+    def evaluate_model(self, n_episodes=10, episode_length=500, render=False):
+        print("Comparing Model to optimal strategy...")
+        model_rewards = [
+            self.get_model_solution(episode_length=episode_length, render=render) for _ in range(n_episodes)
+        ]
+        optimal_strategy_rewards = [
+            self.calculate_optimal_solution(episode_length=episode_length) for _ in range(n_episodes)
+        ]
+        print("In {0} episodes the model achieved an average reward of: {1}".format(
+            n_episodes,
+            np.mean(model_rewards)
+        ))
+        print("The optimal strategy achieved an average reward of: {1}".format(
+            n_episodes,
+            np.mean(optimal_strategy_rewards)
+        ))
+
+    def get_model_solution(self, episode_length=500, render=False):
+        reward = 0
+        observation = self.environment.reset()
+        for _ in range(episode_length):
+            action, _ = self.model.predict(observation, deterministic=True)
+            observation, r, _, _ = self.environment.step(action)
+            reward += r
+            if render:
+                self.environment.render(mode='console')
+
+        return reward
+
+    def calculate_optimal_solution(self, episode_length=500):
         self.ra_problem.reset()
-        return self.create_observation()
+        observation = self.environment.reset()
+        reward = 0
+        for _ in range(episode_length):
+            action = self.ra_problem.get_heuristic_solution(observation)
+            observation, r, _, _ = self.environment.step(action)
+            reward += r
 
-    def step(self, action):
-
-        tasks_waiting = self.ra_problem.get_tasks_waiting()
-        allocations = action.astype(int) & tasks_waiting
-
-        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
-        resources_used_by_allocations = self.ra_problem.calculate_resources_used(allocations)
-
-        resources_left = resource_availabilities - resources_used_by_allocations
-
-        if (resources_left < 0).any():
-            allocations = np.zeros(len(allocations)).astype(int)
-
-        reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
-
-        self.ra_problem.timestep(allocations)
-
-        observation = self.create_observation()
-
-        self.current_timestep += 1
-        done = (self.current_timestep == self.max_timesteps)
-
-        # Optionally we can pass additional info, we are not using that for now
-        info = {}
-
-        return observation, reward, done, info
-
-    def render(self, mode='console'):
-        if mode != 'console':
-            raise NotImplementedError()
-
-        #print("Last action: ", self.last_action)
-        #print("Last Reward: ", self.last_reward)
-        #print("Last departed: ", self.last_departed)
-        #print("Resources available: ", self.resources_available)
-        #print("Tasks in processing: ", self.tasks_in_processing)
-        #print("Arrivals: ", self.arrivals)
-
-    def close(self):
-        pass
-
-    def create_observation(self):
-        new_tasks = self.ra_problem.get_tasks_waiting()
-        resource_availabilities = self.ra_problem.get_current_resource_availabilities()
-        observation = np.append(resource_availabilities, new_tasks)
-        return observation
+        return reward
