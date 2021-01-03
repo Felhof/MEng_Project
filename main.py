@@ -16,7 +16,7 @@ def main(resource_manager, resource_problem_dict, training_steps=50000, steps_pe
     rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.plot_training_results()
-    rm.print_policy()
+    #rm.print_policy()
     #rm.evaluate_model()
 
 
@@ -77,11 +77,11 @@ test_problem = {
 }
 
 small_problem = {
-    "rewards": np.array([2, 1]),
-    "resource_requirements": np.ones((2, 1)),
-    "max_resource_availabilities": np.ones(1),
-    "task_arrival_p": np.array([0.3, 0.4]),
-    "task_departure_p": np.array([0.6, 0.6]),
+    "rewards": np.array([4, 3, 2, 1]),
+    "resource_requirements": np.ones((4, 1)),
+    "max_resource_availabilities": np.ones(1)*3,
+    "task_arrival_p": np.array([0.1, 0.2, 0.3, 0.4]),
+    "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-main(ResourceManager, test_problem, training_steps=35000, steps_per_episode=500)
+main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)

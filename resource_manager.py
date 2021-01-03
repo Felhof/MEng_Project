@@ -9,7 +9,7 @@ import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import ResourceAllocationEnvironment
+from rap_environment import ResourceAllocationEnvironment, SubResourceAllocationEnvironment
 
 
 class ResourceManager:
@@ -27,7 +27,7 @@ class ResourceManager:
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
-        self.environment = environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = SubResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
