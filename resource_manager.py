@@ -9,7 +9,7 @@ import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import ResourceAllocationEnvironment
+from rap_environment import ResourceAllocationEnvironment, SubResourceAllocationEnvironment
 
 
 class ResourceManager:
@@ -27,12 +27,12 @@ class ResourceManager:
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
-        env = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = SubResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
-        check_env(env, warn=True)
+        check_env(self.environment, warn=True)
 
         # wrap it
-        self.environment = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)
+        self.vector_environment = make_vec_env(lambda: self.environment, n_envs=1, monitor_dir=self.log_dir)
 
         self.model = None
         self.training_steps = training_steps
@@ -41,7 +41,7 @@ class ResourceManager:
         # Create callbacks
         auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
-        self.model = A2C('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
+        self.model = A2C('MlpPolicy', self.vector_environment, verbose=1, tensorboard_log=self.log_dir)
 
         with ProgressBarManager(self.training_steps) as progress_callback:
             # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
@@ -76,23 +76,34 @@ class ResourceManager:
 
     def get_model_solution(self, episode_length=500, render=False):
         reward = 0
-        observation = self.environment.reset()
+        observation = self.vector_environment.reset()
         for _ in range(episode_length):
             action, _ = self.model.predict(observation, deterministic=True)
-            observation, r, _, _ = self.environment.step(action)
+            observation, r, _, _ = self.vector_environment.step(action)
             reward += r
             if render:
-                self.environment.render(mode='console')
+                self.vector_environment.render(mode='console')
 
         return reward
 
     def calculate_optimal_solution(self, episode_length=500):
         self.ra_problem.reset()
-        observation = self.environment.reset()
+        observation = self.vector_environment.reset()
         reward = 0
         for _ in range(episode_length):
             action = self.ra_problem.get_heuristic_solution(observation)
-            observation, r, _, _ = self.environment.step(action)
+            observation, r, _, _ = self.vector_environment.step(action)
             reward += r
 
         return reward
+
+    def print_policy(self):
+        all_observations = self.environment.enumerate_observations()
+        policy = {}
+
+        for observation in all_observations:
+            action = self.model.predict(observation, deterministic=True)
+            policy[tuple(observation)] = action
+
+        for item in policy.items():
+            print("{0} : {1}".format(item[0], list(item[1])))

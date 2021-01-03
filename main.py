@@ -16,7 +16,8 @@ def main(resource_manager, resource_problem_dict, training_steps=50000, steps_pe
     rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.plot_training_results()
-    rm.evaluate_model()
+    #rm.print_policy()
+    #rm.evaluate_model()
 
 
 def test():
@@ -56,7 +57,6 @@ urr_problem_dict = {
     "resource_requirements": np.ones((10, 5)),
     "max_resource_availabilities": np.ones(5) * 7,
     "task_arrival_p": np.array([0.6, 0.8, 0.8, 0.7, 0.55, 0.9, 0.9, 0.8, 0.9, 0.9]),
-    #"task_arrival_p": np.ones(10),
     "task_departure_p": np.array([0.1, 0.2, 0.2, 0.15, 0.15, 0.25, 0.3, 0.3, 0.3, 0.35]),
 }
 
@@ -68,4 +68,20 @@ tricky_problem_dict = {
     "task_departure_p": np.array([0.05, 0.99])
 }
 
-main(ResourceManager, tricky_problem_dict, training_steps=50000, steps_per_episode=500)
+test_problem = {
+    "rewards": np.array([3, 2, 1]),
+    "resource_requirements": np.ones((3, 1)),
+    "max_resource_availabilities": np.ones(1)*2,
+    "task_arrival_p": np.array([0.3, 0.4, 0.5]),
+    "task_departure_p": np.array([0.6, 0.6, 0.99]),
+}
+
+small_problem = {
+    "rewards": np.array([4, 3, 2, 1]),
+    "resource_requirements": np.ones((4, 1)),
+    "max_resource_availabilities": np.ones(1)*3,
+    "task_arrival_p": np.array([0.1, 0.2, 0.3, 0.4]),
+    "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
+}
+
+main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
