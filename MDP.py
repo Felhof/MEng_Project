@@ -39,8 +39,7 @@ class MarkovDecisionProcess:
                 transition_matrix[state_idx, action_idx] = transition_probabilities
         return transition_matrix, reward_matrix
 
-    def get_successors(self, state):
-        state_idx = self.state_to_idx[state]
+    def get_successors(self, state_idx):
         successor_states = []
         for action_idx in self.idx_to_action.keys():
             successors_from_action = [successor_state for successor_state, _, _ in self.transition_matrix[state_idx, action_idx]]
