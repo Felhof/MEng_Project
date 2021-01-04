@@ -172,20 +172,20 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
         return self.create_observation()
 
 
-class SubResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
+class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
     def __init__(self, ra_problem, max_timesteps=500):
-        super(SubResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
+        super(MDPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
         self.rap_mdp = MDPBuilder(ra_problem).build_mdp()
 
     def reset(self):
-        super(SubResourceAllocationEnvironment, self).reset()
+        super(MDPResourceAllocationEnvironment, self).reset()
         initial_state = self.rap_mdp.reset()
         initial_state = self.flatten_observation(initial_state)
         return initial_state
 
     def step(self, action):
         observation, reward = self.rap_mdp.step(action)
-        _, _, done, info = super(SubResourceAllocationEnvironment, self).step(action)
+        _, _, done, info = super(MDPResourceAllocationEnvironment, self).step(action)
         observation = self.flatten_observation(observation)
         return observation, reward, done, info
 
