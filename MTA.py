@@ -61,6 +61,8 @@ class SCC:
         self.states_dll = states_dllst
         self.lvl = lvl
 
+    def get_state_idxs(self):
+        return [n.item for n in self.states_dll]
 
 def move_node_to_end(dllst, node):
     node.previous.next = node.next
@@ -88,8 +90,8 @@ def mta_for_scc_and_levels(dllst, mdp):
         current_node.idx = index
         index += 1
         current_level = 0
-        successors = mdp.get_successors(current_node.num)
-        successor_nodes = [nodes[s] for s in successors]
+        successor_idxs = mdp.get_successors(current_node.num)
+        successor_nodes = [nodes[s] for s in successor_idxs]
         for successor_node in successor_nodes:
             if successor_node.idx == 0:
                 move_node_to_end(dllst, successor_node)

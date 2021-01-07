@@ -10,7 +10,7 @@ from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from go_left_env import GoLeftEnv
 from gridworld import GridWorld
 from resource_manager import ResourceManager
-
+from multistage_model import SubspaceMLP, copy_mlp_weights
 
 def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500):
     rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
@@ -34,6 +34,8 @@ def test():
     with ProgressBarManager(5000) as progress_callback:
         model = A2C('MlpPolicy', env, verbose=1).learn(5000, callback=[progress_callback, auto_save_callback])
 
+    m = SubspaceMLP(25, 4)
+    copy_mlp_weights(model, m)
     # Test the trained agent
     obs = env.reset()
     n_steps = 20
@@ -84,4 +86,6 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
+#main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
+
+test()

@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 
 
@@ -19,7 +20,7 @@ class MarkovDecisionProcess:
         self.action_to_idx, self.idx_to_action = build_index(actions)
         self.transition_matrix, self.reward_matrix = self.build_transitions(states, actions, transitions)
         self.initial_states_idxs = [self.state_to_idx[initial_state] for initial_state in initial_states]
-        self.current_state = self.reset()
+        self.current_state_idx = self.reset()
 
     def build_transitions(self, states, actions, transitions_dict):
         transition_matrix = np.zeros((len(states), len(actions)), dtype=np.ndarray)
@@ -42,30 +43,66 @@ class MarkovDecisionProcess:
     def get_successors(self, state_idx):
         successor_states = []
         for action_idx in self.idx_to_action.keys():
-            successors_from_action = [successor_state for successor_state, _, _ in self.transition_matrix[state_idx, action_idx]]
+            successors_from_action = [successor_state_idx for successor_state_idx, _ in self.transition_matrix[state_idx, action_idx]]
             successor_states += successors_from_action
         return successor_states
 
     def reset(self):
         initial_state_idx = np.random.choice(self.initial_states_idxs)
-        initial_state = self.idx_to_state[initial_state_idx]
-        return initial_state
+        return initial_state_idx
 
     def step(self, action):
         action_idx = self.action_to_idx[tuple(action)]
-        state_idx = self.state_to_idx[self.current_state]
-        transitions = self.transition_matrix[state_idx, action_idx]
+        transitions = self.transition_matrix[self.current_state_idx, action_idx]
         if isinstance(transitions, int):
             reward = -10
+            current_state = self.idx_to_state[self.current_state_idx]
         else:
             successor_state_idxs, transition_probabilities = zip(*transitions)
             # make sure probabilities sum to one to avoid problems due to rounding errors
             transition_probabilities = np.array(transition_probabilities) / sum(transition_probabilities)
             successor_state_idx = np.random.choice(successor_state_idxs, p=transition_probabilities)
-            reward = self.reward_matrix[state_idx, action_idx, successor_state_idx]
-            self.current_state = self.idx_to_state[successor_state_idx]
-        return self.current_state, reward
+            reward = self.reward_matrix[self.current_state_idx, action_idx, successor_state_idx]
+            self.current_state_idx = successor_state_idx
+            current_state = self.idx_to_state[successor_state_idx]
+        return current_state, reward
 
+
+class RestrictedMDP:
+
+    def __init__(self, mdp, cc_state_idxs, hull_values):
+        self.mdp = mdp
+        self.cc_state_idxs = cc_state_idxs
+        successors = list(itertools.chain.from_iterable([mdp.get_successors(s) for s in cc_state_idxs]))
+        self.hull = list(set(cc_state_idxs) & set(successors))
+        self.hull_values = hull_values
+        self.initial_states_idxs = list(set(cc_state_idxs) & set(mdp.initial_states_idxs))
+        self.current_state_idx = self.reset()
+
+    def reset(self):
+        initial_state_idx = np.random.choice(self.initial_states_idxs)
+        return initial_state_idx
+
+    def step(self, action):
+        done = False
+        if self.current_state_idx in self.hull:
+            reward = self.hull_values[self.current_state_idx]
+            current_state = self.mdp.idx_to_state[self.current_state_idx]
+            done = True
+        else:
+            action_idx = self.mdp.action_to_idx[tuple(action)]
+            transitions = self.mdp.transition_matrix[self.current_state_idx, action_idx]
+            if isinstance(transitions, int):
+                reward = -10
+                current_state = self.mdp.idx_to_state[self.current_state_idx]
+            else:
+                successor_state_idxs, transition_probabilities = zip(*transitions)
+                transition_probabilities = np.array(transition_probabilities) / sum(transition_probabilities)
+                successor_state_idx = np.random.choice(successor_state_idxs, p=transition_probabilities)
+                reward = self.mdp.reward_matrix[self.current_state_idx, action_idx, successor_state_idx]
+                self.current_state_idx = successor_state_idx
+                current_state = self.mdp.idx_to_state[successor_state_idx]
+        return current_state, reward, done
 
 def bit_permutations(n):
     if n == 1:

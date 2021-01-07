@@ -192,3 +192,26 @@ class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
     def flatten_observation(self, observation):
         flat_obs = reduce(lambda x, y: x + y, observation)
         return np.array(flat_obs)
+
+
+class RestrictedMDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
+    def __init__(self, ra_problem, restricetd_mdp, max_timesteps=500):
+        super(RestrictedMDPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
+        self.rmdp = restricetd_mdp
+
+    def reset(self):
+        super(RestrictedMDPResourceAllocationEnvironment, self).reset()
+        initial_state = self.rmdp.reset()
+        initial_state = self.flatten_observation(initial_state)
+        return initial_state
+
+    def step(self, action):
+        observation, reward, reached_hull = self.rmdp.step(action)
+        _, _, no_time_left, info = super(RestrictedMDPResourceAllocationEnvironment, self).step(action)
+        observation = self.flatten_observation(observation)
+        done = reached_hull or no_time_left
+        return observation, reward, done, info
+
+    def flatten_observation(self, observation):
+        flat_obs = reduce(lambda x, y: x + y, observation)
+        return np.array(flat_obs)

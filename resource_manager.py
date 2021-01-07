@@ -9,8 +9,9 @@ import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment
-from MDP import MDPBuilder
+from rap_environment import MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
+from MDP import MDPBuilder, RestrictedMDP
+import MTA
 
 
 class BaseResourceManager:
@@ -121,20 +122,51 @@ class MultiAgentResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        rap_mdp = MDPBuilder(self.ra_problem).build_mdp()
+        self.rap_mdp = MDPBuilder(self.ra_problem).build_mdp()
+        state_idx = self.rap_mdp.idx_to_state.keys()
+        state_dllst = MTA.DLLst(state_idx)
+
+        MTA.mta_for_scc_and_levels(state_dllst, self.rap_mdp)
+        scc_lst = MTA.SCC_lst
+        scc_lst.sort(key=lambda scc: scc.lvl)
+        self.levels = []
+        current_level = []
+        level = 0
+        for scc in scc_lst:
+            if scc.lvl != level:
+                self.levels.append(current_level)
+                level += 1
+                current_level = []
+            current_level.append(scc)
+        self.levels.append(current_level)
 
         self.model = None
         self.training_steps = training_steps
 
     def train_model(self):
-        # Create callbacks
-        auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
-        self.model = A2C('MlpPolicy', self.vector_environment, verbose=1, tensorboard_log=self.log_dir)
+        state_idx_to_model = {}
+        models = []
 
-        with ProgressBarManager(self.training_steps) as progress_callback:
-            # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
-            self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback, auto_save_callback])
+        lower_level_values = {}
+        for level in self.levels:
+            values = {}
+            for scc in level:
+                state_idxs = scc.get_state_idxs()
+                restricted_mdp = RestrictedMDP(self.rap_mdp, state_idxs, lower_level_values)
+                environment = RestrictedMDPResourceAllocationEnvironment(self.ra_problem, restricted_mdp)
+                vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
+                model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
+
+                with ProgressBarManager(self.training_steps) as progress_callback:
+                    model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+
+                models.append(model)
+                for idx in state_idxs:
+                    state_idx_to_model[idx] = model
+
+                values.update({idx: value for idx, value in zip(state_idxs, model.value[state_idxs])})
+            lower_level_values = values
 
     def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward"):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
