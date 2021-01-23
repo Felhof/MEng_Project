@@ -23,7 +23,7 @@ class ResourceAllocationEnvironmentBase(gym.Env):
         self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
         resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
         new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
-        running_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
+        running_task_observation_dim = np.ones(ra_problem.get_task_count()) * (max(resource_observation_dim) + 1)
         self.observation_dim = np.append(
             np.append(new_task_observation_dim, running_task_observation_dim), resource_observation_dim
         )

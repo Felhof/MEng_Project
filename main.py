@@ -2,8 +2,8 @@ import os
 
 import matplotlib.pyplot as plt
 
-from stable_baselines import A2C
-from stable_baselines.common.cmd_util import make_vec_env
+from stable_baselines3 import A2C
+from stable_baselines3.common.cmd_util import make_vec_env
 import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
@@ -86,6 +86,4 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-#main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
-
-test()
+main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)

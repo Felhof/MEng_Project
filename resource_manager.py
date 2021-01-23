@@ -1,15 +1,15 @@
 import os
 import matplotlib.pyplot as plt
 
-from stable_baselines.common.env_checker import check_env
-from stable_baselines import A2C
-from stable_baselines.common.cmd_util import make_vec_env
-from stable_baselines.results_plotter import load_results, ts2xy
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3 import A2C
+from stable_baselines3.common.cmd_util import make_vec_env
+from stable_baselines3.common.results_plotter import load_results, ts2xy
 import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
+from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
 from MDP import MDPBuilder, RestrictedMDP
 import MTA
 
@@ -35,7 +35,7 @@ class ResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        self.environment = MDPResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
