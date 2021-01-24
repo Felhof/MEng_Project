@@ -1,20 +1,7 @@
 import torch
+from stable_baselines3.common.policies import ActorCriticPolicy
 
-
-def copy_mlp_weights(baselines_model, torch_mlp):
-    model_params = baselines_model.get_parameters()
-
-    policy_keys = [key for key in model_params.keys() if "pi" in key]
-    policy_params = [model_params[key] for key in policy_keys]
-
-    for (th_key, pytorch_param), key, policy_param in zip(torch_mlp.named_parameters(), policy_keys, policy_params):
-        param = torch.from_numpy(policy_param)
-        # Copies parameters from baselines model to pytorch model
-        print(th_key, key)
-        print(pytorch_param.shape, param.shape, policy_param.shape)
-        pytorch_param.data.copy_(param.data.clone().t())
-
-    return torch_mlp
+import copy
 
 
 def mlp(sizes, activations):
@@ -31,33 +18,76 @@ def mlp(sizes, activations):
 
 class SubspaceMLP(torch.nn.Module):
 
-    def __init__(self, n_inputs, n_outputs):
+    def __init__(self, baseline_model):
         super(SubspaceMLP, self).__init__()
-        sizes = [n_inputs] + [64, 64] + [n_outputs]
-        activations = [torch.nn.Tanh(), torch.nn.Tanh(), torch.nn.Softmax(dim=0)]
-        self.ff_stream = mlp(sizes, activations)
+        self.mlp_extractor = copy.deepcopy(baseline_model.policy.mlp_extractor)
+        self.action_net = copy.deepcopy(baseline_model.policy.action_net)
+        self.value_net = copy.deepcopy(baseline_model.policy.value_net)
 
-    def forward(self, x):
-        return self.ff_stream(x)
+        self.softmax = torch.nn.Softmax()
+
+    def forward(self, observation):
+        latent_pi, latent_vf = self.mlp_extractor(observation)
+        action_logits = self.action_net(latent_pi)
+        action_probs = self.softmax(action_logits)
+        values = self.value_net(latent_vf)
+        return action_probs, values
 
 
-class MultiStageModel(torch.nn.Module):
+class MultiStageNetwork(torch.nn.Module):
 
-    def __init__(self, baseline_models, subspace_in, subspace_out):
-        super(MultiStageModel, self).__init__()
-        self.subspace_mlps = []
-        for baseline_model in baseline_models:
-            subspace_mlp = SubspaceMLP(subspace_in, subspace_out)
-            copy_mlp_weights(baseline_model, subspace_mlp)
+    def __init__(self, stage1_models, action_dim):
+        super(MultiStageNetwork, self).__init__()
+        self.stage1_mlps = []
+        for stage1_model in stage1_models:
+            subspace_mlp = SubspaceMLP(stage1_model)
             self.subspace_mlps.append(subspace_mlp)
 
-        combining_in = len(self.subspace_mlps) * subspace_out
-        sizes = [combining_in] + [64, 64] + [subspace_out]
-        activations = [torch.nn.Tanh(), torch.nn.Tanh(), torch.nn.Softmax(dim=0)]
-        self.combining_nn = mlp(sizes, activations)
+        pi_sizes = [action_dim * len(self.stage1_mlps), 64, 64]
+        vf_sizes = [len(self.stage1_mlps), 64, 64]
+        activations = [torch.nn.Tanh(), torch.nn.Tanh()]
 
-    def forward(self, x):
-        stage_1_results = [subspace_mlp.forward(x) for subspace_mlp in self.subspace_mlps]
-        stage_1_results = torch.cat(stage_1_results)
-        stage_2_result = self.combining_nn(stage_1_results)
-        return stage_2_result
+        self.stage2_policy_net = mlp(pi_sizes, activations)
+        self.stage2_value_net = mlp(vf_sizes, activations)
+
+    def forward(self, observation):
+        stage1_pi_outputs = []
+        stage1_vf_outputs = []
+        for stage1_mlp in self.stage1_mlps:
+            action_probs, values = stage1_mlp(observation)
+            stage1_pi_outputs.append(action_probs)
+            stage1_vf_outputs.append(values)
+        aggregate_pi = torch.cat(stage1_pi_outputs)
+        aggregate_vf = torch.cat(stage1_vf_outputs)
+        latent_pi = self.stage2_policy_net(aggregate_pi)
+        latent_vf = self.stage2_value_net(aggregate_vf)
+        return latent_pi, latent_vf
+
+
+class MultiStageActorCritic(ActorCriticPolicy):
+
+    def __init__(
+        self,
+        observation_space,
+        action_space,
+        lr_schedule,
+        net_arch=None,
+        activation_fn=torch.nn.Tanh,
+        *args,
+        **kwargs,
+    ):
+        super(ActorCriticPolicy, self).__init__(
+            observation_space,
+            action_space,
+            lr_schedule,
+            net_arch,
+            activation_fn,
+            # Pass remaining arguments to base class
+            *args,
+            **kwargs,
+        )
+        self.stage1_models = kwargs["stage1_models"]
+        self.actions = action_space.n
+
+    def _build_mlp_extractor(self):
+        self.mlp_extractor = MultiStageNetwork(self.stage1_models, self.actions)
