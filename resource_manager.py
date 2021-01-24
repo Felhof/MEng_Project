@@ -37,6 +37,8 @@ class BaseResourceManager:
         plt.legend()
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
+        plt.axhline(y=0, color='r', linestyle='-')
+        #plt.yscale("log")
         plt.show()
         plt.savefig(filename)
 
@@ -98,7 +100,7 @@ class ResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = MDPResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
@@ -125,7 +127,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
 
         self.rap_mdp = MDPBuilder(self.ra_problem).build_mdp()
-        state_idx = self.rap_mdp.idx_to_state.keys()
+        state_idx = list(self.rap_mdp.idx_to_state.keys())
         state_dllst = MTA.DLLst(state_idx)
 
         MTA.mta_for_scc_and_levels(state_dllst, self.rap_mdp)

@@ -9,7 +9,7 @@ import numpy as np
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from go_left_env import GoLeftEnv
 from gridworld import GridWorld
-from resource_manager import ResourceManager
+from resource_manager import ResourceManager, MultiAgentResourceManager
 from multistage_model import SubspaceMLP
 from torch.nn import functional as F
 
@@ -87,5 +87,5 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-#main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
-test()
+main(MultiAgentResourceManager, small_problem, training_steps=50000, steps_per_episode=100)
+#test()
