@@ -13,6 +13,7 @@ from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocation
 from MDP import MDPBuilder, RestrictedMDP
 import MTA
 from multistage_model import MultiStageActorCritic
+import torch
 
 
 class BaseResourceManager:
@@ -149,12 +150,11 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.steps_per_episode = steps_per_episode
 
     def train_model(self):
-        state_idx_to_model = {}
         models = []
 
         lower_level_values = {}
         for level in self.levels:
-            values = {}
+            current_level_values = {}
             for scc in level:
                 state_idxs = scc.get_state_idxs()
                 restricted_mdp = RestrictedMDP(self.rap_mdp, state_idxs, lower_level_values)
@@ -166,15 +166,17 @@ class MultiAgentResourceManager(BaseResourceManager):
                     model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
                 models.append(model)
-                for idx in state_idxs:
-                    state_idx_to_model[idx] = model
 
-                values.update({idx: value for idx, value in zip(state_idxs, model.value[state_idxs])})
+                states = torch.tensor([restricted_mdp.idx_to_state_list(idx) for idx in state_idxs])
+                _, values, _ = model.policy.forward(states)
+
+                current_level_values.update({idx: value.item() for idx, value in zip(state_idxs, values)})
             lower_level_values = values
 
         whole_environment = MDPResourceAllocationEnvironment(self.ra_problem, self.steps_per_episode)
         whole_vector_environment = make_vec_env(lambda: whole_environment, n_envs=1, monitor_dir=self.log_dir)
+        policy_kwargs = {"stage1_models": models}
         multistage_model = A2C(MultiStageActorCritic, whole_vector_environment, verbose=1, tensorboard_log=self.log_dir,
-                               stage1_models=models)
+                               policy_kwargs=policy_kwargs)
         with ProgressBarManager(self.training_steps) as progress_callback:
             multistage_model.learn(total_timesteps=self.training_steps, callback=progress_callback)

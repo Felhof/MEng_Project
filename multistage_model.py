@@ -76,7 +76,8 @@ class MultiStageActorCritic(ActorCriticPolicy):
         *args,
         **kwargs,
     ):
-        super(ActorCriticPolicy, self).__init__(
+        self.stage1_models = kwargs.pop("stage1_models")
+        super(MultiStageActorCritic, self).__init__(
             observation_space,
             action_space,
             lr_schedule,
@@ -86,7 +87,6 @@ class MultiStageActorCritic(ActorCriticPolicy):
             *args,
             **kwargs,
         )
-        self.stage1_models = kwargs["stage1_models"]
         self.actions = action_space.n
 
     def _build_mlp_extractor(self):

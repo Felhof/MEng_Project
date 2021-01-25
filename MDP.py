@@ -1,3 +1,4 @@
+from functools import reduce
 import itertools
 import numpy as np
 
@@ -77,14 +78,14 @@ class RestrictedMDP:
         self.mdp = mdp
         self.cc_state_idxs = cc_state_idxs
         successors = list(itertools.chain.from_iterable([mdp.get_successors(s) for s in cc_state_idxs]))
-        self.hull = list(set(cc_state_idxs) & set(successors))
+        self.hull = list(set(cc_state_idxs) - set(successors))
         self.hull_values = hull_values
         self.initial_states_idxs = list(set(cc_state_idxs) & set(mdp.initial_states_idxs))
-        self.current_state_idx = self.reset()
+        self.current_state_idx = self.mdp.state_to_idx[self.reset()]
 
     def reset(self):
         initial_state_idx = np.random.choice(self.initial_states_idxs)
-        return initial_state_idx
+        return self.mdp.idx_to_state[initial_state_idx]
 
     def step(self, action):
         done = False
@@ -106,6 +107,11 @@ class RestrictedMDP:
                 self.current_state_idx = successor_state_idx
                 current_state = self.mdp.idx_to_state[successor_state_idx]
         return current_state, reward, done
+
+    def idx_to_state_list(self, state_idx):
+        state = self.mdp.idx_to_state[state_idx]
+        state_list = reduce(lambda x, y: list(x) + list(y), state)
+        return state_list
 
 def bit_permutations(n):
     if n == 1:

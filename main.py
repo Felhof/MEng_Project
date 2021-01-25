@@ -87,5 +87,5 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-main(MultiAgentResourceManager, small_problem, training_steps=50000, steps_per_episode=100)
+main(MultiAgentResourceManager, small_problem, training_steps=5000, steps_per_episode=250)
 #test()
