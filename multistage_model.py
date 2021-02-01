@@ -41,7 +41,7 @@ class MultiStageNetwork(torch.nn.Module):
         self.stage1_mlps = []
         for stage1_model in stage1_models:
             subspace_mlp = SubspaceMLP(stage1_model)
-            self.subspace_mlps.append(subspace_mlp)
+            self.stage1_mlps.append(subspace_mlp)
 
         pi_sizes = [action_dim * len(self.stage1_mlps), 64, 64]
         vf_sizes = [len(self.stage1_mlps), 64, 64]
@@ -50,6 +50,9 @@ class MultiStageNetwork(torch.nn.Module):
         self.stage2_policy_net = mlp(pi_sizes, activations)
         self.stage2_value_net = mlp(vf_sizes, activations)
 
+        self.latent_dim_pi = 64
+        self.latent_dim_vf = 64
+
     def forward(self, observation):
         stage1_pi_outputs = []
         stage1_vf_outputs = []
@@ -57,8 +60,8 @@ class MultiStageNetwork(torch.nn.Module):
             action_probs, values = stage1_mlp(observation)
             stage1_pi_outputs.append(action_probs)
             stage1_vf_outputs.append(values)
-        aggregate_pi = torch.cat(stage1_pi_outputs)
-        aggregate_vf = torch.cat(stage1_vf_outputs)
+        aggregate_pi = torch.cat(stage1_pi_outputs, dim=1)
+        aggregate_vf = torch.cat(stage1_vf_outputs, dim=1)
         latent_pi = self.stage2_policy_net(aggregate_pi)
         latent_vf = self.stage2_value_net(aggregate_vf)
         return latent_pi, latent_vf
@@ -77,6 +80,7 @@ class MultiStageActorCritic(ActorCriticPolicy):
         **kwargs,
     ):
         self.stage1_models = kwargs.pop("stage1_models")
+        self.actions = action_space.n
         super(MultiStageActorCritic, self).__init__(
             observation_space,
             action_space,
@@ -87,7 +91,6 @@ class MultiStageActorCritic(ActorCriticPolicy):
             *args,
             **kwargs,
         )
-        self.actions = action_space.n
 
     def _build_mlp_extractor(self):
         self.mlp_extractor = MultiStageNetwork(self.stage1_models, self.actions)

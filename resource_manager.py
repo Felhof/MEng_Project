@@ -28,12 +28,16 @@ class BaseResourceManager:
         task_arrival_p = rap["task_arrival_p"]
         task_departure_p = rap["task_departure_p"]
 
+        self.model = None
+        self.environment = None
+
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
 
-    def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward"):
+    def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward", title="Learning Curve"):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
         plt.figure(figsize=(20, 10))
+        plt.title(title)
         plt.plot(x, y, "b", label="RL Agent")
         plt.legend()
         plt.xlabel(xlabel)
@@ -94,6 +98,23 @@ class BaseResourceManager:
         for item in policy.items():
             print("{0} : {1}".format(item[0], list(item[1])))
 
+    def run_model(self, n_steps=50):
+        obs = self.environment.reset()
+        total_reward = 0
+        for step in range(n_steps):
+            action, _ = self.model.predict(obs, deterministic=True)
+            print("Sate: ", obs)
+            print("Action: ", action)
+            obs, reward, done, info = self.environment.step(action)
+            total_reward += reward
+            print('reward: ', reward, 'done: ', done)
+            if done:
+                # Note that the VecEnv resets automatically
+                # when a done signal is encountered
+                print("Goal reached!", "reward=", reward)
+                obs = self.environment.reset()
+
+        print("Total reward: ", total_reward)
 
 
 class ResourceManager(BaseResourceManager):
@@ -101,14 +122,13 @@ class ResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        self.environment = MDPResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
         # wrap it
         self.vector_environment = make_vec_env(lambda: self.environment, n_envs=1, monitor_dir=self.log_dir)
 
-        self.model = None
         self.training_steps = training_steps
 
     def train_model(self):
@@ -128,6 +148,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
 
         self.rap_mdp = MDPBuilder(self.ra_problem).build_mdp()
+        self.rap_mdp.transform(3)
         state_idx = list(self.rap_mdp.idx_to_state.keys())
         state_dllst = MTA.DLLst(state_idx)
 
@@ -145,7 +166,6 @@ class MultiAgentResourceManager(BaseResourceManager):
             current_level.append(scc)
         self.levels.append(current_level)
 
-        self.model = None
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
 
@@ -153,9 +173,9 @@ class MultiAgentResourceManager(BaseResourceManager):
         models = []
 
         lower_level_values = {}
-        for level in self.levels:
+        for lvl_id, level in enumerate(self.levels):
             current_level_values = {}
-            for scc in level:
+            for scc_id, scc in enumerate(level):
                 state_idxs = scc.get_state_idxs()
                 restricted_mdp = RestrictedMDP(self.rap_mdp, state_idxs, lower_level_values)
                 environment = RestrictedMDPResourceAllocationEnvironment(self.ra_problem, restricted_mdp)
@@ -165,13 +185,18 @@ class MultiAgentResourceManager(BaseResourceManager):
                 with ProgressBarManager(self.training_steps) as progress_callback:
                     model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
+                self.plot_training_results(title="SubAgent {0} {1}".format(lvl_id + 1, scc_id + 1))
+                self.environment = environment
+                self.model = model
+                self.run_model()
+
                 models.append(model)
 
                 states = torch.tensor([restricted_mdp.idx_to_state_list(idx) for idx in state_idxs])
                 _, values, _ = model.policy.forward(states)
 
                 current_level_values.update({idx: value.item() for idx, value in zip(state_idxs, values)})
-            lower_level_values = values
+            lower_level_values = current_level_values
 
         whole_environment = MDPResourceAllocationEnvironment(self.ra_problem, self.steps_per_episode)
         whole_vector_environment = make_vec_env(lambda: whole_environment, n_envs=1, monitor_dir=self.log_dir)
@@ -180,3 +205,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                                policy_kwargs=policy_kwargs)
         with ProgressBarManager(self.training_steps) as progress_callback:
             multistage_model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+
+        self.environment = whole_vector_environment
+        self.model = multistage_model

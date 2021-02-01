@@ -18,8 +18,7 @@ def main(resource_manager, resource_problem_dict, training_steps=50000, steps_pe
     rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.plot_training_results()
-    #rm.print_policy()
-    #rm.evaluate_model()
+    rm.run_model()
 
 
 def test():
@@ -64,7 +63,7 @@ urr_problem_dict = {
 }
 
 tricky_problem_dict = {
-    "rewards": np.array([5, 1]),
+    "rewards": np.array([10, 1]),
     "resource_requirements": np.ones((2, 2)),
     "max_resource_availabilities": np.ones(2),
     "task_arrival_p": np.array([1, 1]),
@@ -87,5 +86,13 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-main(MultiAgentResourceManager, small_problem, training_steps=5000, steps_per_episode=250)
+decomposable_problem = {
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
+}
+
+main(ResourceManager, tricky_problem_dict, training_steps=10000, steps_per_episode=100)
 #test()

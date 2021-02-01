@@ -71,6 +71,28 @@ class MarkovDecisionProcess:
             current_state = self.idx_to_state[successor_state_idx]
         return current_state, reward
 
+    def transform(self, resource_index):
+        for state_idx, state in self.idx_to_state.items():
+            if state[1][resource_index] == 0:
+                continue
+            for action_idx, action in self.idx_to_action.items():
+                transitions = self.transition_matrix[state_idx, action_idx]
+                if isinstance(transitions, int):
+                    continue
+
+                def next_state_needs_less_of_resource(state_probability_pair):
+                    next_state_idx = state_probability_pair[0]
+                    next_state = self.idx_to_state[next_state_idx]
+                    return state[1][resource_index] <= next_state[1][resource_index]
+
+                transitions = list(filter(next_state_needs_less_of_resource, transitions))
+                next_states, probabilities = list(zip(*transitions))
+                probabilities = np.array(probabilities)
+                normalised_probabilities = probabilities / probabilities.sum()
+                normalised_transitions = list(zip(next_states, normalised_probabilities))
+                self.transition_matrix[state_idx, action_idx] = normalised_transitions
+
+
 
 class RestrictedMDP:
 
@@ -78,13 +100,13 @@ class RestrictedMDP:
         self.mdp = mdp
         self.cc_state_idxs = cc_state_idxs
         successors = list(itertools.chain.from_iterable([mdp.get_successors(s) for s in cc_state_idxs]))
-        self.hull = list(set(cc_state_idxs) - set(successors))
+        self.hull = list(set(successors) - set(cc_state_idxs))
         self.hull_values = hull_values
-        self.initial_states_idxs = list(set(cc_state_idxs) & set(mdp.initial_states_idxs))
         self.current_state_idx = self.mdp.state_to_idx[self.reset()]
 
     def reset(self):
-        initial_state_idx = np.random.choice(self.initial_states_idxs)
+        initial_state_idx = np.random.choice(self.cc_state_idxs)
+        self.current_state_idx = initial_state_idx
         return self.mdp.idx_to_state[initial_state_idx]
 
     def step(self, action):
@@ -97,7 +119,7 @@ class RestrictedMDP:
             action_idx = self.mdp.action_to_idx[tuple(action)]
             transitions = self.mdp.transition_matrix[self.current_state_idx, action_idx]
             if isinstance(transitions, int):
-                reward = -10
+                reward = -1
                 current_state = self.mdp.idx_to_state[self.current_state_idx]
             else:
                 successor_state_idxs, transition_probabilities = zip(*transitions)
