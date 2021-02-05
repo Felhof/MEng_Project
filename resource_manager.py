@@ -122,7 +122,7 @@ class ResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = MDPResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 

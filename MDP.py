@@ -53,13 +53,14 @@ class MarkovDecisionProcess:
 
     def reset(self):
         initial_state_idx = np.random.choice(self.initial_states_idxs)
+        self.current_state_idx = initial_state_idx
         return self.idx_to_state[initial_state_idx]
 
     def step(self, action):
         action_idx = self.action_to_idx[tuple(action)]
         transitions = self.transition_matrix[self.current_state_idx, action_idx]
         if isinstance(transitions, int):
-            reward = -1
+            reward = 0
             current_state = self.idx_to_state[self.current_state_idx]
         else:
             successor_state_idxs, transition_probabilities = zip(*transitions)
@@ -119,7 +120,7 @@ class RestrictedMDP:
             action_idx = self.mdp.action_to_idx[tuple(action)]
             transitions = self.mdp.transition_matrix[self.current_state_idx, action_idx]
             if isinstance(transitions, int):
-                reward = -1
+                reward = 0
                 current_state = self.mdp.idx_to_state[self.current_state_idx]
             else:
                 successor_state_idxs, transition_probabilities = zip(*transitions)

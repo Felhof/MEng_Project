@@ -94,5 +94,5 @@ decomposable_problem = {
     "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
 }
 
-main(ResourceManager, tricky_problem_dict, training_steps=10000, steps_per_episode=100)
+main(ResourceManager, decomposable_problem, training_steps=50000, steps_per_episode=100)
 #test()
