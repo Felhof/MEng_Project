@@ -2,6 +2,7 @@ from functools import reduce
 import numpy as np
 import gym
 from gym import spaces
+import torch
 
 from MDP import MDPBuilder
 
@@ -12,18 +13,27 @@ class ResourceAllocationEnvironmentBase(gym.Env):
     """
     metadata = {'render.modes': ['console']}
 
-    # Define constants for clearer code
-
     def __init__(self, ra_problem, max_timesteps=500):
         super(ResourceAllocationEnvironmentBase, self).__init__()
         self.ra_problem = ra_problem
         self.max_timesteps = max_timesteps
         self.current_timestep = 0
+        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities()
 
-        self.action_space = spaces.MultiBinary(ra_problem.get_task_count())
-        resource_observation_dim = ra_problem.get_max_resource_availabilities() + 1
-        new_task_observation_dim = np.ones(ra_problem.get_task_count()) + 1
-        running_task_observation_dim = np.ones(ra_problem.get_task_count()) * (max(resource_observation_dim) + 1)
+        self.action_space = None
+        self.observation_dim = None
+        self.observation_space = None
+
+        resource_observation_dim = self.ra_problem.get_max_resource_availabilities() + 1
+        new_task_observation_dim = np.ones(self.ra_problem.get_task_count()) + 1
+        running_task_observation_dim = np.ones(self.ra_problem.get_task_count()) * (max(resource_observation_dim) + 1)
+
+        self.build_action_and_observation_space(resource_observation_dim, new_task_observation_dim,
+                                                running_task_observation_dim)
+
+    def build_action_and_observation_space(self, resource_observation_dim, new_task_observation_dim,
+                                           running_task_observation_dim):
+        self.action_space = spaces.MultiBinary(self.ra_problem.get_task_count())
         self.observation_dim = np.append(
             np.append(new_task_observation_dim, running_task_observation_dim), resource_observation_dim
         )
@@ -81,6 +91,7 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
         self.current_resource_availabilities = self.ra_problem.get_max_resource_availabilities()
         self.tasks_in_processing = np.zeros(self.ra_problem.get_task_count()).astype(int)
         self.tasks_waiting = np.zeros(self.ra_problem.get_task_count()).astype(int)
+        self.current_state = None
 
     # GETTERS ----------------------------------------------------------------------------------------------------------
     def get_current_resource_availabilities(self):
@@ -96,15 +107,15 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
     def calculate_reward(self, allocations):
         return float(np.sum(allocations * self.ra_problem.get_rewards()))
 
-    def create_observation(self):
+    def update_current_state(self):
         new_tasks = self.tasks_waiting
         resource_availabilities = self.current_resource_availabilities
         running_tasks = self.tasks_in_processing
-        observation = np.append(np.append(new_tasks, running_tasks), resource_availabilities)
-        return observation
+        self.current_state = np.append(np.append(new_tasks, running_tasks), resource_availabilities)
 
     def finished_tasks(self):
-        return np.random.binomial(self.tasks_in_processing, self.ra_problem.get_task_departure_p())
+        departure_probabilities = self.ra_problem.get_task_departure_p()
+        return np.random.binomial(self.tasks_in_processing, departure_probabilities)
 
     def new_tasks(self):
         return np.random.binomial(1, self.ra_problem.get_task_arrival_p())
@@ -115,38 +126,36 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
         :return: (np.array)
         """
         super(ResourceAllocationEnvironment, self).reset()
-        self.current_resource_availabilities = self.ra_problem.get_max_resource_availabilities()
+        self.current_resource_availabilities = self.max_resource_availabilities
         self.tasks_in_processing = np.zeros(self.ra_problem.get_task_count()).astype(int)
         self.tasks_waiting = self.new_tasks()
 
-        observation = self.create_observation()
-        return observation
+        self.update_current_state()
+        return self.current_state
 
     def step(self, action):
-        reward = 0
-
         tasks_waiting = self.tasks_waiting
 
         preliminary_allocation = action.astype(int)
 
         if (tasks_waiting - preliminary_allocation < 0).any():
-            allocations = np.zeros(len(preliminary_allocation)).astype(int)
-            reward -= 10
+            reward = 0
         else:
             allocations = preliminary_allocation & tasks_waiting
 
-        resource_availabilities = self.current_resource_availabilities
-        resources_used_by_allocations = self.ra_problem.calculate_resources_used(allocations)
+            resource_availabilities = self.current_resource_availabilities
+            resources_used_by_allocations = self.ra_problem.calculate_resources_used(allocations)
 
-        resources_left = resource_availabilities - resources_used_by_allocations
+            resources_left = resource_availabilities - resources_used_by_allocations
 
-        if (resources_left < 0).any():
-            allocations = np.zeros(len(allocations)).astype(int)
-            reward -= 10
+            if (resources_left < 0).any():
+                reward = 0
+            else:
+                self.timestep(allocations)
+                self.update_current_state()
+                reward = self.calculate_reward(allocations)
 
-        reward += self.calculate_reward(allocations)
-
-        observation = self.timestep(allocations)
+        observation = self.current_state
 
         _, _, done, info = super(ResourceAllocationEnvironment, self).step(action)
 
@@ -169,7 +178,58 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
 
         self.tasks_waiting = self.new_tasks()
 
-        return self.create_observation()
+
+class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
+
+    def __init__(self, ra_problem, task_locks=None, lower_lvl_models=None, max_timesteps=500):
+        self.restricted_tasks = list(task_locks.keys())
+        self.amount_of_locked_tasks = list(task_locks.values())
+        super(RestrictedResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
+        self.lower_lvl_models = lower_lvl_models
+        self.in_hull = False
+
+        locked_tasks = np.zeros(self.ra_problem.get_task_count())
+        for task, locked_amount in task_locks.items():
+            locked_tasks[task] = locked_amount
+
+        cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
+        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - cost_of_restricted_tasks
+
+    def reset(self):
+        """
+        Important: the observation must be a numpy array
+        :return: (np.array)
+        """
+        super(RestrictedResourceAllocationEnvironment, self).reset()
+        self.tasks_in_processing[self.restricted_tasks] = self.amount_of_locked_tasks
+        self.update_current_state()
+
+        self.in_hull = False
+
+        return self.current_state
+
+    def finished_tasks(self):
+        departure_probabilities = self.ra_problem.get_task_departure_p()
+        finished_tasks = np.random.binomial(self.tasks_in_processing, departure_probabilities)
+        finished_tasks[self.restricted_tasks] = 0
+        return finished_tasks
+
+    def calculate_reward(self, allocations):
+        model_key = tuple(self.tasks_in_processing[self.restricted_tasks])
+        lower_lvl_model = self.lower_lvl_models.get(model_key, None)
+        if lower_lvl_model is not None:
+            state_tensor = torch.tensor(self.current_state).unsqueeze(0)
+            _, value, _ = lower_lvl_model.policy.forward(state_tensor)
+            reward = value.item()
+            self.in_hull = True
+        else:
+            reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
+        return reward
+
+    def step(self, action):
+        observation, reward, done, info = super(RestrictedResourceAllocationEnvironment, self).step(action)
+        done = done or self.in_hull
+        return observation, reward, done, info
 
 
 class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):

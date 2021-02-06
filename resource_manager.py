@@ -9,7 +9,8 @@ import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
+from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment, \
+    RestrictedMDPResourceAllocationEnvironment, RestrictedResourceAllocationEnvironment
 from MDP import MDPBuilder, RestrictedMDP
 import MTA
 from multistage_model import MultiStageActorCritic
@@ -122,7 +123,7 @@ class ResourceManager(BaseResourceManager):
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir)
 
-        self.environment = MDPResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
+        self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
@@ -144,8 +145,56 @@ class ResourceManager(BaseResourceManager):
 
 class MultiAgentResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
+    def __init__(self, rap, restricted_tasks=None, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
+
+        self.restricted_tasks = restricted_tasks
+        self.training_steps = training_steps
+        self.steps_per_episode = steps_per_episode
+
+    def train_model(self):
+        models = []
+
+        lower_lvl_models = {}
+        restricted_task = self.restricted_tasks[0]
+        resource_availability = self.ra_problem.get_max_resource_availabilities()
+        resource_requirements = self.ra_problem.resource_requirements[restricted_task]
+        max_tasks_in_processing = int(min(resource_availability / resource_requirements))
+        for amount in reversed(range(max_tasks_in_processing + 1)):
+            task_locks = {restricted_task: amount}
+            environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
+                                                                  task_locks=task_locks,
+                                                                  lower_lvl_models=lower_lvl_models)
+            vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
+            model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
+
+            with ProgressBarManager(self.training_steps) as progress_callback:
+                model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+
+            self.plot_training_results(title="SubAgent {0} {1}".format(amount + 1, 1))
+            self.environment = environment
+            self.model = model
+            self.run_model()
+
+            models.append(model)
+            lower_lvl_models[tuple([amount])] = model
+
+        whole_environment = ResourceAllocationEnvironment(self.ra_problem, self.steps_per_episode)
+        whole_vector_environment = make_vec_env(lambda: whole_environment, n_envs=1, monitor_dir=self.log_dir)
+        policy_kwargs = {"stage1_models": models}
+        multistage_model = A2C(MultiStageActorCritic, whole_vector_environment, verbose=1, tensorboard_log=self.log_dir,
+                               policy_kwargs=policy_kwargs)
+        with ProgressBarManager(self.training_steps) as progress_callback:
+            multistage_model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+
+        self.environment = whole_vector_environment
+        self.model = multistage_model
+
+
+class MDPMultiAgentResourceManager(BaseResourceManager):
+
+    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
+        super(MDPMultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
 
         self.rap_mdp = MDPBuilder(self.ra_problem).build_mdp()
         self.rap_mdp.transform(3)

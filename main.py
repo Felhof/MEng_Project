@@ -15,7 +15,8 @@ from torch.nn import functional as F
 
 
 def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500):
-    rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
+    rm = resource_manager(resource_problem_dict, restricted_tasks=[3], training_steps=training_steps, steps_per_episode=steps_per_episode)
+    # rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.plot_training_results()
     rm.run_model()
@@ -94,5 +95,5 @@ decomposable_problem = {
     "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
 }
 
-main(ResourceManager, decomposable_problem, training_steps=50000, steps_per_episode=100)
+main(MultiAgentResourceManager, decomposable_problem, training_steps=20000, steps_per_episode=100)
 #test()
