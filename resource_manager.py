@@ -19,7 +19,7 @@ import torch
 
 class BaseResourceManager:
 
-    def __init__(self, rap, log_dir="/tmp/gym"):
+    def __init__(self, rap, plotter=None, log_dir="/tmp/gym"):
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
@@ -29,24 +29,28 @@ class BaseResourceManager:
         task_arrival_p = rap["task_arrival_p"]
         task_departure_p = rap["task_departure_p"]
 
+        self.plotter = plotter
+
         self.model = None
         self.environment = None
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
 
-    def plot_training_results(self, xlabel="episode", ylabel="cumulative reward", filename="reward", title="Learning Curve"):
+    def save_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward", filename="reward"):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
+
         plt.figure(figsize=(20, 10))
-        plt.title(title)
-        plt.plot(x, y, "b", label="RL Agent")
+        plt.title(stage)
+        plt.plot(x, y, "b", label="Cumulative Reward")
         plt.legend()
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.axhline(y=0, color='r', linestyle='-')
-        #plt.yscale("log")
+        # plt.yscale("log")
         plt.show()
         plt.savefig(filename)
+
 
     def evaluate_model(self, n_episodes=10, episode_length=500, render=False):
         print("Comparing Model to optimal strategy...")
@@ -120,8 +124,8 @@ class BaseResourceManager:
 
 class ResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
-        super(ResourceManager, self).__init__(rap, log_dir=log_dir)
+    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym", plotter=None):
+        super(ResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
@@ -145,8 +149,9 @@ class ResourceManager(BaseResourceManager):
 
 class MultiAgentResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, restricted_tasks=None, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym"):
-        super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir)
+    def __init__(self, rap, restricted_tasks=None, training_steps=50000, steps_per_episode=500, plotter=None,
+                 log_dir="/tmp/gym"):
+        super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.restricted_tasks = restricted_tasks
         self.training_steps = training_steps
@@ -164,14 +169,15 @@ class MultiAgentResourceManager(BaseResourceManager):
             task_locks = {restricted_task: amount}
             environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
                                                                   task_locks=task_locks,
-                                                                  lower_lvl_models=lower_lvl_models)
+                                                                  lower_lvl_models=lower_lvl_models,
+                                                                  max_timesteps=self.steps_per_episode)
             vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
             model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
 
             with ProgressBarManager(self.training_steps) as progress_callback:
                 model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-            self.plot_training_results(title="SubAgent {0} {1}".format(amount + 1, 1))
+            self.save_training_results(stage="SubAgent {0} {1}".format(amount + 1, 1))
             self.environment = environment
             self.model = model
             self.run_model()
@@ -234,7 +240,7 @@ class MDPMultiAgentResourceManager(BaseResourceManager):
                 with ProgressBarManager(self.training_steps) as progress_callback:
                     model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-                self.plot_training_results(title="SubAgent {0} {1}".format(lvl_id + 1, scc_id + 1))
+                self.save_training_results(title="SubAgent {0} {1}".format(lvl_id + 1, scc_id + 1))
                 self.environment = environment
                 self.model = model
                 self.run_model()

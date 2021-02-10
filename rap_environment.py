@@ -218,10 +218,10 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
         model_key = tuple(self.tasks_in_processing[self.restricted_tasks])
         lower_lvl_model = self.lower_lvl_models.get(model_key, None)
         if lower_lvl_model is not None:
+            self.in_hull = True
             state_tensor = torch.tensor(self.current_state).unsqueeze(0)
             _, value, _ = lower_lvl_model.policy.forward(state_tensor)
-            reward = value.item()
-            self.in_hull = True
+            reward = value.item() * (1 - self.current_timestep/self.max_timesteps)
         else:
             reward = float(np.sum(allocations * self.ra_problem.get_rewards()))
         return reward
@@ -229,6 +229,7 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
     def step(self, action):
         observation, reward, done, info = super(RestrictedResourceAllocationEnvironment, self).step(action)
         done = done or self.in_hull
+
         return observation, reward, done, info
 
 
