@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+import itertools
 
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import A2C
@@ -159,14 +160,18 @@ class MultiAgentResourceManager(BaseResourceManager):
 
     def train_model(self):
         models = []
-
         lower_lvl_models = {}
-        restricted_task = self.restricted_tasks[0]
-        resource_availability = self.ra_problem.get_max_resource_availabilities()
-        resource_requirements = self.ra_problem.resource_requirements[restricted_task]
-        max_tasks_in_processing = int(min(resource_availability / resource_requirements))
-        for amount in reversed(range(max_tasks_in_processing + 1)):
-            task_locks = {restricted_task: amount}
+
+        running_task_ranges = []
+        for restricted_task in self.restricted_tasks:
+            resource_availability = self.ra_problem.get_max_resource_availabilities()
+            resource_requirements = self.ra_problem.resource_requirements[restricted_task]
+            running_tasks_range = list(range(int(min(resource_availability / resource_requirements)) + 1))
+            running_task_ranges.append(running_tasks_range)
+
+        task_locks = list(itertools.product(*running_task_ranges))
+        for task_lock in reversed(task_locks):
+            task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
             environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
                                                                   task_locks=task_locks,
                                                                   lower_lvl_models=lower_lvl_models,
@@ -177,13 +182,13 @@ class MultiAgentResourceManager(BaseResourceManager):
             with ProgressBarManager(self.training_steps) as progress_callback:
                 model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-            self.save_training_results(stage="SubAgent {0} {1}".format(amount + 1, 1))
+            self.save_training_results(stage="SubAgent {0}".format(task_lock))
             self.environment = environment
             self.model = model
             self.run_model()
 
             models.append(model)
-            lower_lvl_models[tuple([amount])] = model
+            lower_lvl_models[task_lock] = model
 
         whole_environment = ResourceAllocationEnvironment(self.ra_problem, self.steps_per_episode)
         whole_vector_environment = make_vec_env(lambda: whole_environment, n_envs=1, monitor_dir=self.log_dir)
