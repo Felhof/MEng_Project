@@ -2,22 +2,27 @@ import os
 
 import matplotlib.pyplot as plt
 
-from stable_baselines import A2C
-from stable_baselines.common.cmd_util import make_vec_env
+from stable_baselines3 import A2C
+from stable_baselines3.common.cmd_util import make_vec_env
 import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from go_left_env import GoLeftEnv
 from gridworld import GridWorld
-from resource_manager import ResourceManager
+from resource_manager import ResourceManager, MultiAgentResourceManager
+from multistage_model import SubspaceMLP
+from torch.nn import functional as F
+
+from plotter import LearningCurvePlotter
 
 
 def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500):
-    rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
+    rm = resource_manager(resource_problem_dict, restricted_tasks=[3], training_steps=training_steps,
+                          steps_per_episode=steps_per_episode)
+    # rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
-    rm.plot_training_results()
-    #rm.print_policy()
-    #rm.evaluate_model()
+    rm.save_training_results()
+    rm.run_model()
 
 
 def test():
@@ -34,6 +39,7 @@ def test():
     with ProgressBarManager(5000) as progress_callback:
         model = A2C('MlpPolicy', env, verbose=1).learn(5000, callback=[progress_callback, auto_save_callback])
 
+    m = SubspaceMLP(model)
     # Test the trained agent
     obs = env.reset()
     n_steps = 20
@@ -61,7 +67,7 @@ urr_problem_dict = {
 }
 
 tricky_problem_dict = {
-    "rewards": np.array([5, 1]),
+    "rewards": np.array([10, 1]),
     "resource_requirements": np.ones((2, 2)),
     "max_resource_availabilities": np.ones(2),
     "task_arrival_p": np.array([1, 1]),
@@ -84,4 +90,13 @@ small_problem = {
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
 }
 
-main(ResourceManager, small_problem, training_steps=35000, steps_per_episode=500)
+decomposable_problem = {
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
+}
+
+main(MultiAgentResourceManager, decomposable_problem, training_steps=10000, steps_per_episode=100)
+#test()

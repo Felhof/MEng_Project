@@ -7,7 +7,6 @@ SCC_lst = []
 
 class DLLst:
     def __init__(self, items):
-        self.length = len(items)
         if len(items) == 0:
             self.start = None
             self.end = None
@@ -31,6 +30,33 @@ class DLLst:
 
     def __iter__(self):
         return DLLstIterator(self)
+
+    def set_start(self, node):
+        if node is not None:
+            node.previous = None
+        self.start = node
+
+    def set_end(self, node):
+        if node is not None:
+            node.next = None
+        self.end = node
+
+    def append(self, node):
+        node.previous = self.end
+        self.end.next = node
+        self.set_end(node)
+
+    def remove(self, node):
+        if node.previous is not None:
+            node.previous.next = node.next
+        if node.next is not None:
+            node.next.previous = node.previous
+
+    def get_count(self):
+        count = 0
+        for _ in self:
+            count += 1
+        print(count)
 
 
 class DLLstIterator:
@@ -61,41 +87,48 @@ class SCC:
         self.states_dll = states_dllst
         self.lvl = lvl
 
+    def get_state_idxs(self):
+        return [n.num for n in self.states_dll]
+
+
+cnt = 0
 
 def move_node_to_end(dllst, node):
-    node.previous.next = node.next
-    node.next.previous = node.previous
-    dllst.end.next = node
-    node.previous = dllst.end
+    global cnt
+    cnt += 1
+    if node is dllst.end:
+        return
+    if node is dllst.start:
+        dllst.set_start(node.next)
+    dllst.remove(node)
+    dllst.append(node)
 
 
 def move_class_to_scc_lst(dllst, node, lvl):
     scc_dllst = DLLst([])
-    scc_dllst.start = nodes[node.num]
+    scc_dllst.start = node
     scc_dllst.end = dllst.end
-    dllst.end = scc_dllst.start.previous
+    dllst.set_end(node.previous)
     scc = SCC(scc_dllst, lvl)
     SCC_lst.append(scc)
     return scc
 
 
 def mta_for_scc_and_levels(dllst, mdp):
-    global index
-    index = 1
 
-    def dfs_levels(current_node):
+    def dfs_levels(current_node, index):
         current_node.low = index
         current_node.idx = index
         index += 1
         current_level = 0
-        successors = mdp.get_successors(current_node.num)
-        successor_nodes = [nodes[s] for s in successors]
+        successor_idxs = mdp.get_successors(current_node.num)
+        successor_nodes = [nodes[s] for s in successor_idxs]
         for successor_node in successor_nodes:
             if successor_node.idx == 0:
                 move_node_to_end(dllst, successor_node)
-                successor_level = dfs_levels(successor_node)
+                successor_level, index = dfs_levels(successor_node, index)
                 current_node.low = min(current_node.low, successor_node.low)
-                current_level = min(current_level, successor_level)
+                current_level = max(current_level, successor_level)
             elif successor_node.level == -1:
                 current_node.low = min(current_node.low, successor_node.idx)
             else:
@@ -104,13 +137,13 @@ def mta_for_scc_and_levels(dllst, mdp):
             scc = move_class_to_scc_lst(dllst, current_node, current_level)
             for state_node in scc.states_dll:
                 state_node.level = current_level
-            return current_level + 1
-        return current_level
+            return current_level + 1, index
+        return current_level, index
 
+    index = 1
     while dllst.end is not None:
-        index = 1
         current_node = dllst.end
-        dfs_levels(current_node)
+        _, index = dfs_levels(current_node, index)
 
 
 
