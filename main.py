@@ -1,25 +1,17 @@
-import os
-
-import matplotlib.pyplot as plt
-
 from stable_baselines3 import A2C
 from stable_baselines3.common.cmd_util import make_vec_env
 import numpy as np
 
 from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
-from go_left_env import GoLeftEnv
 from gridworld import GridWorld
 from resource_manager import ResourceManager, MultiAgentResourceManager
 from multistage_model import SubspaceMLP
-from torch.nn import functional as F
-
-from plotter import LearningCurvePlotter
 
 
-def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500):
-    rm = resource_manager(resource_problem_dict, restricted_tasks=[3], training_steps=training_steps,
+def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500, restricted_tasks=None):
+    rm = resource_manager(resource_problem_dict, restricted_tasks=restricted_tasks, training_steps=training_steps,
                           steps_per_episode=steps_per_episode)
-    # rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
+    #rm = resource_manager(resource_problem_dict, training_steps=training_steps, steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.save_training_results()
     rm.run_model()
@@ -98,5 +90,15 @@ decomposable_problem = {
     "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
 }
 
-main(MultiAgentResourceManager, decomposable_problem, training_steps=10000, steps_per_episode=100)
-#test()
+decomposable_problem2 = {
+    "rewards": np.array([1, 1, 1, 1, 10, 10]),
+    "resource_requirements": np.array([[0, 1], [1, 0], [0, 1], [1, 0], [2, 0], [0, 2]]),
+    "max_resource_availabilities": np.array([3, 3]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.5, 0.6, 0.01, 0.01])
+}
+
+restricted_tasks = [3]
+
+main(MultiAgentResourceManager, decomposable_problem, training_steps=25000, steps_per_episode=100,
+     restricted_tasks=restricted_tasks)
