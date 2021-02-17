@@ -169,8 +169,8 @@ class MultiAgentResourceManager(BaseResourceManager):
             running_tasks_range = list(range(int(min(resource_availability / resource_requirements)) + 1))
             running_task_ranges.append(running_tasks_range)
 
-        task_locks = list(itertools.product(*running_task_ranges))
-        for task_lock in reversed(task_locks):
+        task_lock_combinations = list(itertools.product(*running_task_ranges))
+        for task_lock in reversed(task_lock_combinations):
             task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
             environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
                                                                   task_locks=task_locks,
