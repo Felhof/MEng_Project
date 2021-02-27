@@ -100,5 +100,5 @@ decomposable_problem2 = {
 
 restricted_tasks = [3]
 
-main(MultiAgentResourceManager, decomposable_problem, training_steps=25000, steps_per_episode=100,
+main(MultiAgentResourceManager, decomposable_problem, training_steps=20000, steps_per_episode=100,
      restricted_tasks=restricted_tasks)

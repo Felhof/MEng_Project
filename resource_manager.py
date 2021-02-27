@@ -18,8 +18,8 @@ import MTA
 from multistage_model import MultiStageActorCritic
 import torch
 
+import ray
 from ray import tune
-from ray.tune.schedulers import ASHAScheduler
 from ray.tune import CLIReporter
 
 
@@ -180,16 +180,10 @@ class MultiAgentResourceManager(BaseResourceManager):
         for task_lock in reversed(task_lock_combinations):
             task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
 
-            environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
-                                                                  task_locks=task_locks,
-                                                                  lower_lvl_models=lower_lvl_models,
-                                                                  max_timesteps=self.steps_per_episode)
-            vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
-
-            model = self.train_submodel_with_hyperparameter_search(vector_environment, self.training_steps)
+            model = self.train_model_with_hyperparameter_search(task_locks, lower_lvl_models, self.training_steps)
 
             self.save_training_results(stage="SubAgent {0}".format(task_lock))
-            self.environment = environment
+            #self.environment = environment
             self.model = model
             self.run_model()
 
@@ -207,33 +201,44 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.environment = whole_vector_environment
         self.model = multistage_model
 
-    def train_submodel_with_hyperparameter_search(self, vector_environment, training_steps, iterations=10):
+    def train_model_with_hyperparameter_search(self, task_locks, lower_lvl_models, training_steps, iterations=10):
 
         best_reward = -np.inf
+        best_model = None
 
-        def train(self, config, checkpoint_dir=None):
-            best_model = None
+        def train(config, checkpoint_dir=None):
+            nonlocal best_reward
+            nonlocal best_model
 
-            del config["use_entropy_loss"]
+            environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
+                                                                  task_locks=task_locks,
+                                                                  lower_lvl_models=lower_lvl_models,
+                                                                  max_timesteps=self.steps_per_episode)
+            vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
 
             rewards = []
             for n in range(iterations):
-                model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir, **config)
+                model = A2C('MlpPolicy',
+                            vector_environment,
+                            verbose=1,
+                            tensorboard_log=self.log_dir,
+                            learning_rate=config["learning_rate"],
+                            gamma=config["gamma"],
+                            ent_coef=config["ent_coef"],
+                            max_grad_norm=config["max_grad_norm"])
+
                 model.learn(total_timesteps=training_steps)
-                reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)
-                nonlocal best_reward
+                reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)[0]
+
                 if reward > best_reward:
                     best_model = model
-                    nonlocal best_reward
                     best_reward = reward
                 rewards.append(reward)
 
-            best_model.save(self.save_dir + "/best_submodel")
-
-            tune.report(reward=np.mean(rewards))
+            tune.report(reward=np.mean(rewards), std=np.std(rewards))
 
         config = {
-            "learning rate": tune.uniform(0.0004, 0.0012),
+            "learning_rate": tune.uniform(0.0004, 0.0012),
             "gamma": tune.uniform(0.97, 0.999),
             "use_entropy_loss": tune.choice([True, False]),
             "ent_coef": tune.sample_from(lambda spec: spec.config.use_entropy_loss * np.random.uniform(0, 0.002)),
@@ -241,8 +246,9 @@ class MultiAgentResourceManager(BaseResourceManager):
         }
 
         # To print the current trial status
-        reporter = CLIReporter(metric_columns=["reward", "evaluation_iteration"])
+        reporter = CLIReporter(metric_columns=["reward", "std", "evaluation_iteration"])
 
+        ray.init(log_to_driver=False)
         result = tune.run(
             train,
             config=config,
@@ -250,7 +256,8 @@ class MultiAgentResourceManager(BaseResourceManager):
             progress_reporter=reporter
         )
 
-        best_model = A2C.load(self.save_dir + "/best_submodel")
+        best_trial_config = result.get_best_trial("reward", mode="max").config
+        print(best_trial_config)
 
         return best_model
 
