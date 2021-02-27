@@ -4,8 +4,8 @@ from resources.resource_manager import MultiAgentResourceManager
 import resources.test_problems
 
 
-def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500, restricted_tasks=None):
-    rm = resource_manager(resource_problem_dict, restricted_tasks=restricted_tasks, training_steps=training_steps,
+def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500):
+    rm = resource_manager(resource_problem_dict, training_steps=training_steps,
                           steps_per_episode=steps_per_episode)
     rm.train_model()
     rm.save_training_results()
@@ -29,7 +29,4 @@ if __name__ == "__main__":
 
     problem = test_problems[args.problem]
 
-    restricted_tasks = [3]
-
-    main(MultiAgentResourceManager, problem, training_steps=20000, steps_per_episode=100,
-         restricted_tasks=restricted_tasks)
+    main(MultiAgentResourceManager, problem, training_steps=20000, steps_per_episode=100)

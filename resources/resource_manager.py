@@ -155,13 +155,13 @@ class ResourceManager(BaseResourceManager):
 
 class MultiAgentResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, restricted_tasks=None, training_steps=50000, steps_per_episode=500, plotter=None,
+    def __init__(self, rap, training_steps=50000, steps_per_episode=500, plotter=None,
                  log_dir="/tmp/gym"):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.save_dir = "/tmp/gym/"
 
-        self.restricted_tasks = restricted_tasks
+        self.restricted_tasks = rap["restricted_tasks"]
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
 

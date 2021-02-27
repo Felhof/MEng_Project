@@ -7,6 +7,7 @@ urr_problem_dict = {
     "max_resource_availabilities": np.ones(5) * 7,
     "task_arrival_p": np.array([0.6, 0.8, 0.8, 0.7, 0.55, 0.9, 0.9, 0.8, 0.9, 0.9]),
     "task_departure_p": np.array([0.1, 0.2, 0.2, 0.15, 0.15, 0.25, 0.3, 0.3, 0.3, 0.35]),
+    "restricted_tasks": None
 }
 
 tricky_problem_dict = {
@@ -14,7 +15,8 @@ tricky_problem_dict = {
     "resource_requirements": np.ones((2, 2)),
     "max_resource_availabilities": np.ones(2),
     "task_arrival_p": np.array([1, 1]),
-    "task_departure_p": np.array([0.05, 0.99])
+    "task_departure_p": np.array([0.05, 0.99]),
+    "restricted_tasks": None
 }
 
 test_problem = {
@@ -23,6 +25,7 @@ test_problem = {
     "max_resource_availabilities": np.ones(1)*2,
     "task_arrival_p": np.array([0.3, 0.4, 0.5]),
     "task_departure_p": np.array([0.6, 0.6, 0.99]),
+    "restricted_tasks": None
 }
 
 small_problem = {
@@ -31,6 +34,7 @@ small_problem = {
     "max_resource_availabilities": np.ones(1)*3,
     "task_arrival_p": np.array([0.1, 0.2, 0.3, 0.4]),
     "task_departure_p": np.array([0.6, 0.6, 0.6, 0.6]),
+    "restricted_tasks": None
 }
 
 decomposable_problem = {
@@ -38,7 +42,8 @@ decomposable_problem = {
     "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
     "max_resource_availabilities": np.array([7, 4]),
     "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
-    "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01])
+    "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01]),
+    "restricted_tasks": [3]
 }
 
 decomposable_problem2 = {
@@ -46,5 +51,6 @@ decomposable_problem2 = {
     "resource_requirements": np.array([[0, 1], [1, 0], [0, 1], [1, 0], [2, 0], [0, 2]]),
     "max_resource_availabilities": np.array([3, 3]),
     "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25, 0.25, 0.25]),
-    "task_departure_p": np.array([0.6, 0.5, 0.5, 0.6, 0.01, 0.01])
+    "task_departure_p": np.array([0.6, 0.5, 0.5, 0.6, 0.01, 0.01]),
+    "restricted_tasks": None
 }
