@@ -4,7 +4,7 @@ import gym
 from gym import spaces
 import torch
 
-from MDP import MDPBuilder
+from resources.MDP import MDPBuilder
 
 
 class ResourceAllocationEnvironmentBase(gym.Env):

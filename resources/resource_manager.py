@@ -9,13 +9,13 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
 
-from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager, RewardReporterCallback
-from resource_allocation_problem import ResourceAllocationProblem
-from rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment, \
+from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
+from resources.resource_allocation_problem import ResourceAllocationProblem
+from resources.rap_environment import ResourceAllocationEnvironment, MDPResourceAllocationEnvironment, \
     RestrictedMDPResourceAllocationEnvironment, RestrictedResourceAllocationEnvironment
-from MDP import MDPBuilder, RestrictedMDP
-import MTA
-from multistage_model import MultiStageActorCritic
+from resources.MDP import MDPBuilder, RestrictedMDP
+from resources import MTA
+from resources.multistage_model import MultiStageActorCritic
 import torch
 
 import ray

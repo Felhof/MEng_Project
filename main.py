@@ -2,10 +2,9 @@ from stable_baselines3 import A2C
 from stable_baselines3.common.cmd_util import make_vec_env
 import numpy as np
 
-from callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
-from gridworld import GridWorld
-from resource_manager import ResourceManager, MultiAgentResourceManager
-from multistage_model import SubspaceMLP
+from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
+from resources.resource_manager import MultiAgentResourceManager
+from resources.multistage_model import SubspaceMLP
 
 
 def main(resource_manager, resource_problem_dict, training_steps=50000, steps_per_episode=500, restricted_tasks=None):
