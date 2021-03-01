@@ -8,7 +8,7 @@ def main(resource_manager, resource_problem_dict, training_steps=50000, steps_pe
     rm = resource_manager(resource_problem_dict, training_steps=training_steps,
                           steps_per_episode=steps_per_episode)
     rm.train_model()
-    rm.save_training_results()
+    rm.plot_training_results()
     rm.run_model()
 
 

@@ -43,7 +43,7 @@ class BaseResourceManager:
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
 
-    def save_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward", filename="reward"):
+    def plot_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward", filename="reward"):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
 
         plt.figure(figsize=(20, 10))
@@ -53,7 +53,6 @@ class BaseResourceManager:
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.axhline(y=0, color='r', linestyle='-')
-        # plt.yscale("log")
         plt.show()
         plt.savefig(filename)
 
@@ -156,7 +155,7 @@ class ResourceManager(BaseResourceManager):
 class MultiAgentResourceManager(BaseResourceManager):
 
     def __init__(self, rap, training_steps=50000, steps_per_episode=500, plotter=None,
-                 log_dir="/tmp/gym"):
+                 log_dir="/tmp/gym", search_hyperparameters=False):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.save_dir = "/tmp/gym/"
@@ -164,6 +163,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.restricted_tasks = rap["restricted_tasks"]
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
+        self.search_hyperparameters = search_hyperparameters
 
     def train_model(self):
         models = []
@@ -180,28 +180,55 @@ class MultiAgentResourceManager(BaseResourceManager):
         for task_lock in reversed(task_lock_combinations):
             task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
 
-            model = self.train_model_with_hyperparameter_search(task_locks, lower_lvl_models, self.training_steps)
+            environment_kwargs = {
+                "task_locks": task_locks,
+                "lower_lvl_models": lower_lvl_models,
+                "max_timesteps": self.steps_per_episode
+            }
 
-            self.save_training_results(stage="SubAgent {0}".format(task_lock))
-            #self.environment = environment
-            self.model = model
-            self.run_model()
+            policy_kwargs = {}
+
+            if self.search_hyperparameters:
+                model = self.train_model_with_hyperparameter_search(RestrictedResourceAllocationEnvironment,
+                                                                    environment_kwargs, policy_kwargs)
+            else:
+                model = self.train_model_with_default_parameters(RestrictedResourceAllocationEnvironment,
+                                                                    environment_kwargs, policy_kwargs)
 
             models.append(model)
             lower_lvl_models[task_lock] = model
 
-        whole_environment = ResourceAllocationEnvironment(self.ra_problem, self.steps_per_episode)
-        whole_vector_environment = make_vec_env(lambda: whole_environment, n_envs=1, monitor_dir=self.log_dir)
+        environment_kwargs = {
+            "max_timesteps": self.steps_per_episode
+        }
         policy_kwargs = {"stage1_models": models}
-        multistage_model = A2C(MultiStageActorCritic, whole_vector_environment, verbose=1, tensorboard_log=self.log_dir,
-                               policy_kwargs=policy_kwargs)
+
+        if self.search_hyperparameters:
+            self.train_model_with_hyperparameter_search(ResourceAllocationEnvironment, environment_kwargs,
+                                                        policy_kwargs)
+        else:
+            self.train_model_with_default_parameters(ResourceAllocationEnvironment, environment_kwargs, policy_kwargs)
+
+    def train_model_with_default_parameters(self, environment_class, environment_kwargs, policy_kwargs):
+
+        environment = environment_class(self.ra_problem, **environment_kwargs)
+        vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
+
+        model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir,
+                    policy_kwargs=policy_kwargs)
+
         with ProgressBarManager(self.training_steps) as progress_callback:
-            multistage_model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+            model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-        self.environment = whole_vector_environment
-        self.model = multistage_model
+        self.plot_training_results()
 
-    def train_model_with_hyperparameter_search(self, task_locks, lower_lvl_models, training_steps, iterations=10):
+        self.environment = vector_environment
+        self.model = model
+
+        return model
+
+    def train_model_with_hyperparameter_search(self, environment_class, environment_kwargs, policy_kwargs,
+                                               iterations=10):
 
         best_reward = -np.inf
         best_model = None
@@ -210,10 +237,7 @@ class MultiAgentResourceManager(BaseResourceManager):
             nonlocal best_reward
             nonlocal best_model
 
-            environment = RestrictedResourceAllocationEnvironment(self.ra_problem,
-                                                                  task_locks=task_locks,
-                                                                  lower_lvl_models=lower_lvl_models,
-                                                                  max_timesteps=self.steps_per_episode)
+            environment = environment_class(self.ra_problem, **environment_kwargs)
             vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
 
             rewards = []
@@ -225,9 +249,10 @@ class MultiAgentResourceManager(BaseResourceManager):
                             learning_rate=config["learning_rate"],
                             gamma=config["gamma"],
                             ent_coef=config["ent_coef"],
-                            max_grad_norm=config["max_grad_norm"])
+                            max_grad_norm=config["max_grad_norm"],
+                            policy_kwargs=policy_kwargs)
 
-                model.learn(total_timesteps=training_steps)
+                model.learn(total_timesteps=self.training_steps)
                 reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)[0]
 
                 if reward > best_reward:
@@ -306,7 +331,7 @@ class MDPMultiAgentResourceManager(BaseResourceManager):
                 with ProgressBarManager(self.training_steps) as progress_callback:
                     model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-                self.save_training_results(title="SubAgent {0} {1}".format(lvl_id + 1, scc_id + 1))
+                self.plot_training_results(title="SubAgent {0} {1}".format(lvl_id + 1, scc_id + 1))
                 self.environment = environment
                 self.model = model
                 self.run_model()
