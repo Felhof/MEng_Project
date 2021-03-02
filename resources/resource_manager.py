@@ -43,7 +43,8 @@ class BaseResourceManager:
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
 
-    def plot_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward", filename="reward"):
+    def plot_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward",
+                              filename="reward", show=False):
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
 
         plt.figure(figsize=(20, 10))
@@ -53,8 +54,9 @@ class BaseResourceManager:
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.axhline(y=0, color='r', linestyle='-')
-        plt.show()
-        plt.savefig(filename)
+        plt.savefig("img/" + filename)
+        if show:
+            plt.show()
 
 
     def evaluate_model(self, n_episodes=10, episode_length=500, render=False):
@@ -164,6 +166,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
         self.search_hyperparameters = search_hyperparameters
+        self.model_name = "Marl"
 
     def train_model(self):
         models = []
@@ -177,7 +180,7 @@ class MultiAgentResourceManager(BaseResourceManager):
             running_task_ranges.append(running_tasks_range)
 
         task_lock_combinations = list(itertools.product(*running_task_ranges))
-        for task_lock in reversed(task_lock_combinations):
+        for idx, task_lock in enumerate(reversed(task_lock_combinations)):
             task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
 
             environment_kwargs = {
@@ -192,8 +195,11 @@ class MultiAgentResourceManager(BaseResourceManager):
                 model = self.train_model_with_hyperparameter_search(RestrictedResourceAllocationEnvironment,
                                                                     environment_kwargs, policy_kwargs)
             else:
+                name = self.model_name + "_" + str(idx)
                 model = self.train_model_with_default_parameters(RestrictedResourceAllocationEnvironment,
-                                                                    environment_kwargs, policy_kwargs)
+                                                                 environment_kwargs,
+                                                                 policy_kwargs,
+                                                                 name=name)
 
             models.append(model)
             lower_lvl_models[task_lock] = model
@@ -205,22 +211,31 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         if self.search_hyperparameters:
             self.train_model_with_hyperparameter_search(ResourceAllocationEnvironment, environment_kwargs,
-                                                        policy_kwargs)
+                                                        policy_kwargs, policy=MultiStageActorCritic)
         else:
-            self.train_model_with_default_parameters(ResourceAllocationEnvironment, environment_kwargs, policy_kwargs)
+            name = self.model_name + "_" + "final"
+            self.train_model_with_default_parameters(ResourceAllocationEnvironment,
+                                                     environment_kwargs,
+                                                     policy_kwargs,
+                                                     policy=MultiStageActorCritic,
+                                                     name=name)
 
-    def train_model_with_default_parameters(self, environment_class, environment_kwargs, policy_kwargs):
+    def train_model_with_default_parameters(self, environment_class, environment_kwargs, policy_kwargs,
+                                            policy=None, name=""):
+
+        if policy is None:
+            policy = "MlpPolicy"
 
         environment = environment_class(self.ra_problem, **environment_kwargs)
         vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
 
-        model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir,
+        model = A2C(policy, vector_environment, verbose=1, tensorboard_log=self.log_dir,
                     policy_kwargs=policy_kwargs)
 
         with ProgressBarManager(self.training_steps) as progress_callback:
             model.learn(total_timesteps=self.training_steps, callback=progress_callback)
 
-        self.plot_training_results()
+        self.plot_training_results(filename=name)
 
         self.environment = vector_environment
         self.model = model
@@ -228,7 +243,10 @@ class MultiAgentResourceManager(BaseResourceManager):
         return model
 
     def train_model_with_hyperparameter_search(self, environment_class, environment_kwargs, policy_kwargs,
-                                               iterations=10):
+                                               policy=None, iterations=10):
+
+        if policy is None:
+            policy = "MlpPolicy"
 
         best_reward = -np.inf
         best_model = None
@@ -242,7 +260,7 @@ class MultiAgentResourceManager(BaseResourceManager):
 
             rewards = []
             for n in range(iterations):
-                model = A2C('MlpPolicy',
+                model = A2C(policy,
                             vector_environment,
                             verbose=1,
                             tensorboard_log=self.log_dir,
