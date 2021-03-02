@@ -8,6 +8,7 @@ from stable_baselines3.common.cmd_util import make_vec_env
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
+import uuid
 
 from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resources.resource_allocation_problem import ResourceAllocationProblem
@@ -17,6 +18,7 @@ from resources.MDP import MDPBuilder, RestrictedMDP
 from resources import MTA
 from resources.multistage_model import MultiStageActorCritic
 import torch
+from resources.plotter import LearningCurvePlotter, ExperimentResult
 
 import ray
 from ray import tune
@@ -43,12 +45,14 @@ class BaseResourceManager:
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
 
-    def plot_training_results(self, stage="Learning Curve", xlabel="episode", ylabel="cumulative reward",
-                              filename="reward", show=False):
-        x, y = ts2xy(load_results(self.log_dir), 'timesteps')
+    def plot_training_results(self, title="Learning Curve", xlabel="episode", ylabel="cumulative reward",
+                              filename="reward", log_dir=None, show=False):
+        if log_dir is None:
+            log_dir = self.log_dir
+        x, y = ts2xy(load_results(log_dir), 'timesteps')
 
         plt.figure(figsize=(20, 10))
-        plt.title(stage)
+        plt.title(title)
         plt.plot(x, y, "b", label="Cumulative Reward")
         plt.legend()
         plt.xlabel(xlabel)
@@ -167,6 +171,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.steps_per_episode = steps_per_episode
         self.search_hyperparameters = search_hyperparameters
         self.model_name = "Marl"
+        self.learning_curve_plotter = LearningCurvePlotter()
 
     def train_model(self):
         models = []
@@ -190,12 +195,13 @@ class MultiAgentResourceManager(BaseResourceManager):
             }
 
             policy_kwargs = {}
-
+            name = self.model_name + "_" + str(idx)
             if self.search_hyperparameters:
                 model = self.train_model_with_hyperparameter_search(RestrictedResourceAllocationEnvironment,
-                                                                    environment_kwargs, policy_kwargs)
+                                                                    environment_kwargs,
+                                                                    policy_kwargs,
+                                                                    name=name)
             else:
-                name = self.model_name + "_" + str(idx)
                 model = self.train_model_with_default_parameters(RestrictedResourceAllocationEnvironment,
                                                                  environment_kwargs,
                                                                  policy_kwargs,
@@ -208,12 +214,15 @@ class MultiAgentResourceManager(BaseResourceManager):
             "max_timesteps": self.steps_per_episode
         }
         policy_kwargs = {"stage1_models": models}
+        name = self.model_name + "_" + "final"
 
         if self.search_hyperparameters:
-            self.train_model_with_hyperparameter_search(ResourceAllocationEnvironment, environment_kwargs,
-                                                        policy_kwargs, policy=MultiStageActorCritic)
+            self.train_model_with_hyperparameter_search(ResourceAllocationEnvironment,
+                                                        environment_kwargs,
+                                                        policy_kwargs,
+                                                        policy=MultiStageActorCritic,
+                                                        name=name)
         else:
-            name = self.model_name + "_" + "final"
             self.train_model_with_default_parameters(ResourceAllocationEnvironment,
                                                      environment_kwargs,
                                                      policy_kwargs,
@@ -243,22 +252,17 @@ class MultiAgentResourceManager(BaseResourceManager):
         return model
 
     def train_model_with_hyperparameter_search(self, environment_class, environment_kwargs, policy_kwargs,
-                                               policy=None, iterations=10):
+                                               policy=None, name="", iterations=10):
 
         if policy is None:
             policy = "MlpPolicy"
 
-        best_reward = -np.inf
-        best_model = None
-
         def train(config, checkpoint_dir=None):
-            nonlocal best_reward
-            nonlocal best_model
-
             environment = environment_class(self.ra_problem, **environment_kwargs)
             vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
 
             rewards = []
+
             for n in range(iterations):
                 model = A2C(policy,
                             vector_environment,
@@ -271,11 +275,8 @@ class MultiAgentResourceManager(BaseResourceManager):
                             policy_kwargs=policy_kwargs)
 
                 model.learn(total_timesteps=self.training_steps)
-                reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)[0]
 
-                if reward > best_reward:
-                    best_model = model
-                    best_reward = reward
+                reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)[0]
                 rewards.append(reward)
 
             tune.report(reward=np.mean(rewards), std=np.std(rewards))
@@ -295,13 +296,32 @@ class MultiAgentResourceManager(BaseResourceManager):
         result = tune.run(
             train,
             config=config,
-            num_samples=15,
+            num_samples=2,
             progress_reporter=reporter
         )
 
         best_trial_config = result.get_best_trial("reward", mode="max").config
         print(best_trial_config)
+        env = environment_class(self.ra_problem, **environment_kwargs)
+        vector_env = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)
 
+        best_model = A2C(policy,
+                         vector_env,
+                         verbose=1,
+                         tensorboard_log=self.log_dir,
+                         learning_rate=best_trial_config["learning_rate"],
+                         gamma=best_trial_config["gamma"],
+                         ent_coef=best_trial_config["ent_coef"],
+                         max_grad_norm=best_trial_config["max_grad_norm"],
+                         policy_kwargs=policy_kwargs)
+
+        best_model.learn(total_timesteps=self.training_steps)
+
+        self.plot_training_results(filename=name, show=True)
+
+        ray.shutdown()
+
+        best_model = None
         return best_model
 
 
