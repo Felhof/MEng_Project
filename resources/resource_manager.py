@@ -301,7 +301,6 @@ class MultiAgentResourceManager(BaseResourceManager):
         )
 
         best_trial_config = result.get_best_trial("reward", mode="max").config
-        print(best_trial_config)
         env = environment_class(self.ra_problem, **environment_kwargs)
         vector_env = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)
 
