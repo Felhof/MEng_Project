@@ -2,6 +2,7 @@ import numpy as np
 
 # problem satisfying the uniform resource requirement
 urr_problem_dict = {
+    "name": None,
     "rewards": np.array([30, 23, 17, 12, 9, 7, 5, 3, 2, 1]),
     "resource_requirements": np.ones((10, 5)),
     "max_resource_availabilities": np.ones(5) * 7,
@@ -11,6 +12,7 @@ urr_problem_dict = {
 }
 
 tricky_problem_dict = {
+    "name": None,
     "rewards": np.array([10, 1]),
     "resource_requirements": np.ones((2, 2)),
     "max_resource_availabilities": np.ones(2),
@@ -20,6 +22,7 @@ tricky_problem_dict = {
 }
 
 test_problem = {
+    "name": None,
     "rewards": np.array([3, 2, 1]),
     "resource_requirements": np.ones((3, 1)),
     "max_resource_availabilities": np.ones(1)*2,
@@ -29,6 +32,7 @@ test_problem = {
 }
 
 small_problem = {
+    "name": None,
     "rewards": np.array([4, 3, 2, 1]),
     "resource_requirements": np.ones((4, 1)),
     "max_resource_availabilities": np.ones(1)*3,
@@ -37,7 +41,8 @@ small_problem = {
     "restricted_tasks": None
 }
 
-decomposable_problem = {
+deep_decomposable_problem = {
+    "name": "deep_decomposable",
     "rewards": np.array([2, 1, 2, 10]),
     "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
     "max_resource_availabilities": np.array([7, 4]),
@@ -47,6 +52,7 @@ decomposable_problem = {
 }
 
 decomposable_problem2 = {
+    "name": "decomposable2",
     "rewards": np.array([1, 1, 1, 1, 10, 10]),
     "resource_requirements": np.array([[0, 1], [1, 0], [0, 1], [1, 0], [2, 0], [0, 2]]),
     "max_resource_availabilities": np.array([3, 3]),

@@ -170,7 +170,9 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
         self.search_hyperparameters = search_hyperparameters
-        self.model_name = "Marl"
+        self.model_name = "MARL"
+        if search_hyperparameters:
+            self.model_name += "_tuned"
         self.learning_curve_plotter = LearningCurvePlotter()
 
     def train_model(self, iterations=5):
@@ -244,13 +246,14 @@ class MultiAgentResourceManager(BaseResourceManager):
             stage2_plotter.add_result(result)
 
         for n in range(len(task_lock_combinations)):
-            csv_name = "stage1_lvl{0}_results".format(n)
-            plot_name = "stage1_lvl{0}_average_reward".format(n)
+            csv_name = self.model_name + "_stage1_lvl{0}_results".format(n)
+            plot_name = self.model_name + "_stage1_lvl{0}_average_reward".format(n)
             stage1_plotter[n].save_results(csv_name)
             stage1_plotter[n].plot_average_results(filename=plot_name, epoch_length=self.training_steps)
 
-        stage2_plotter.save_results("stage2_results")
-        stage2_plotter.plot_average_results(filename="stage2_average_reward", epoch_length=self.training_steps)
+        stage2_plotter.save_results(self.model_name + "stage2_results")
+        stage2_plotter.plot_average_results(filename=self.model_name + "stage2_average_reward",
+                                            epoch_length=self.training_steps)
 
         self.model = multistage_model
 
@@ -336,7 +339,7 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         self.environment = vector_env
 
-        #self.plot_training_results(filename=name, show=True)
+        self.plot_training_results(filename=name)
 
         return model
 

@@ -28,7 +28,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     test_problems = {
-        "decomposable1": resources.test_problems.decomposable_problem
+        "decomposable1": resources.test_problems.deep_decomposable_problem
     }
 
     problem = test_problems[args.problem]
