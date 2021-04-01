@@ -167,6 +167,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.save_dir = "/tmp/gym/"
 
         self.restricted_tasks = rap["restricted_tasks"]
+        self.locks = rap["locks"]
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
         self.search_hyperparameters = search_hyperparameters
@@ -177,17 +178,8 @@ class MultiAgentResourceManager(BaseResourceManager):
 
     def train_model(self, iterations=5):
 
-        running_task_ranges = []
-        for restricted_task in self.restricted_tasks:
-            resource_availability = self.ra_problem.get_max_resource_availabilities()
-            resource_requirements = self.ra_problem.resource_requirements[restricted_task]
-            running_tasks_range = list(range(int(min(resource_availability / resource_requirements)) + 1))
-            running_task_ranges.append(running_tasks_range)
-
-        task_lock_combinations = list(itertools.product(*running_task_ranges))
-
-        stage1_hyperparams = [None] * len(task_lock_combinations)
-        stage1_plotter = [LearningCurvePlotter() for _ in range(len(task_lock_combinations))]
+        stage1_hyperparams = [None] * len(self.locks)
+        stage1_plotter = [LearningCurvePlotter() for _ in range(len(self.locks))]
         stage2_hyperparams = None
         stage2_plotter = LearningCurvePlotter()
 
@@ -195,8 +187,12 @@ class MultiAgentResourceManager(BaseResourceManager):
             stage1_models = []
             lower_lvl_models = {}
 
-            for idx, task_lock in enumerate(reversed(task_lock_combinations)):
-                task_locks = {restricted_task: amount for restricted_task, amount in zip(self.restricted_tasks, task_lock)}
+            for idx, task_lock in enumerate(self.locks):
+                if len(self.restricted_tasks) == 1:
+                    task_locks = {self.restricted_tasks[0]: task_lock}
+                else:
+                    task_locks = {restricted_task: amount for restricted_task, amount
+                                  in zip(self.restricted_tasks, task_lock)}
 
                 environment_kwargs = {
                     "task_locks": task_locks,
@@ -221,7 +217,11 @@ class MultiAgentResourceManager(BaseResourceManager):
                 stage1_plotter[idx].add_result(result)
 
                 stage1_models.append(model)
-                lower_lvl_models[task_lock] = model
+                if len(self.restricted_tasks) == 1:
+                    lower_lvl_models[tuple(task_lock)] = model
+                else:
+                    for key in itertools.product(*task_lock):
+                        lower_lvl_models[key] = model
 
             environment_kwargs = {
                 "max_timesteps": self.steps_per_episode
@@ -245,7 +245,7 @@ class MultiAgentResourceManager(BaseResourceManager):
             result = ts2xy(load_results(self.log_dir), 'timesteps')
             stage2_plotter.add_result(result)
 
-        for n in range(len(task_lock_combinations)):
+        for n in range(len(self.locks)):
             csv_name = self.model_name + "_stage1_lvl{0}_results".format(n)
             plot_name = self.model_name + "_stage1_lvl{0}_average_reward".format(n)
             stage1_plotter[n].save_results(csv_name)
