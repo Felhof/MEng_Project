@@ -1,19 +1,17 @@
 import matplotlib.pyplot as plt
 import math
 
-import numpy as np
-
 
 class LearningCurvePlotter:
 
-    def __init__(self, img_dir="../img/"):
+    def __init__(self, img_dir="img/"):
         self.results = []
         self.img_dir = img_dir
 
     def add_result(self, result):
         self.results.append(result)
 
-    def plot_average_results(self, title="avergage reward", filename="average_reward", epoch_length=20000):
+    def plot_average_results(self, title="average reward", filename="average_reward", epoch_length=20000):
 
         reward_buckets = [[] for _ in range(math.ceil(epoch_length / 100))]
 
