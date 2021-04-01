@@ -244,13 +244,15 @@ class MultiAgentResourceManager(BaseResourceManager):
             stage2_plotter.add_result(result)
 
         for n in range(len(task_lock_combinations)):
-            filename = "stage1_lvl{0}_average_reward".format(n)
-            stage1_plotter[n].plot_average_results(filename=filename, epoch_length=self.training_steps)
+            csv_name = "stage1_lvl{0}_results".format(n)
+            plot_name = "stage1_lvl{0}_average_reward".format(n)
+            stage1_plotter[n].save_results(csv_name)
+            stage1_plotter[n].plot_average_results(filename=plot_name, epoch_length=self.training_steps)
 
+        stage2_plotter.save_results("stage2_results")
         stage2_plotter.plot_average_results(filename="stage2_average_reward", epoch_length=self.training_steps)
 
         self.model = multistage_model
-
 
     def search_hyperparams(self, environment_class, environment_kwargs, policy_kwargs,
                                                policy=None, iterations=10):
@@ -331,6 +333,8 @@ class MultiAgentResourceManager(BaseResourceManager):
                     **config)
         with ProgressBarManager(self.training_steps) as progress_callback:
             model.learn(total_timesteps=self.training_steps, callback=progress_callback)
+
+        self.environment = vector_env
 
         #self.plot_training_results(filename=name, show=True)
 

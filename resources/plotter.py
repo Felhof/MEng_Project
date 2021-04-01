@@ -1,3 +1,4 @@
+import csv
 import matplotlib.pyplot as plt
 import math
 
@@ -10,6 +11,14 @@ class LearningCurvePlotter:
 
     def add_result(self, result):
         self.results.append(result)
+
+    def save_results(self, filename="results"):
+        with open('{}.csv'.format(filename), mode='w') as results_file:
+            results_writer = csv.writer(results_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            for result in self.results:
+                episodes, rewards = result
+                results_writer.writerow(episodes)
+                results_writer.writerow(rewards)
 
     def plot_average_results(self, title="average reward", filename="average_reward", epoch_length=20000):
 
