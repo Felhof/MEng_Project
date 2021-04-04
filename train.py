@@ -28,12 +28,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     test_problems = {
-        "decomposable1": resources.test_problems.deep_decomposable_problem
+        "deep_decomposable": resources.test_problems.deep_decomposable_problem,
+        "wide_decomposable": resources.test_problems.wide_decomposable_problem2
     }
 
     problem = test_problems[args.problem]
 
     search_hyperparameters = args.hpsearch
 
-    main(MultiAgentResourceManager, problem, training_steps=1000, steps_per_episode=100,
+    main(MultiAgentResourceManager, problem, training_steps=20000, steps_per_episode=100,
          search_hyperparameters=search_hyperparameters)

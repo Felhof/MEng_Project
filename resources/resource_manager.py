@@ -208,6 +208,8 @@ class MultiAgentResourceManager(BaseResourceManager):
                                                                       environment_kwargs,
                                                                       policy_kwargs)
 
+                stage1_hyperparams[idx] = None
+
                 model = self.train_submodel(RestrictedResourceAllocationEnvironment,
                                             environment_kwargs,
                                             policy_kwargs,
@@ -264,29 +266,65 @@ class MultiAgentResourceManager(BaseResourceManager):
         if policy is None:
             policy = "MlpPolicy"
 
-        def train(config, checkpoint_dir=None):
-            environment = environment_class(self.ra_problem, **environment_kwargs)
-            vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
+        model_keys = []
+        model_paths = []
 
+        if "lower_lvl_models" in environment_kwargs:
+            lower_lvl_models = environment_kwargs["lower_lvl_models"]
+            if lower_lvl_models:
+                for key, model in lower_lvl_models.items():
+                    path = os.path.abspath("submodel_" + str(key))
+                    model.save(path)
+                    model_paths.append(path)
+                    model_keys.append(key)
+            environment_kwargs["lower_lvl_models"] = {}
+
+        if "stage1_models" in policy_kwargs:
+            stage1_models = policy_kwargs["stage1_models"]
+            for n, model in enumerate(stage1_models):
+                path = os.path.abspath("stage1_model_" + str(n))
+                model.save(path)
+                model_paths.append(path)
+            policy_kwargs["stage1_models"] = []
+
+        ra_problem = self.ra_problem
+        log_dir = self.log_dir
+        training_steps = self.training_steps
+
+        def train(config, checkpoint_dir=None):
+
+            if model_keys:
+                for key, path in zip(model_keys, model_paths):
+                    submodel = A2C.load(path)
+                    environment_kwargs["lower_lvl_models"][key] = submodel
+            if "stage1_models" in policy_kwargs:
+                for path in model_paths:
+                    stage1_model = A2C.load(path)
+                    policy_kwargs["stage1_models"].append(stage1_model)
+            
+            environment = environment_class(ra_problem, **environment_kwargs)
+            vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=log_dir)
+            
             rewards = []
 
             for n in range(iterations):
                 model = A2C(policy,
                             vector_environment,
                             verbose=1,
-                            tensorboard_log=self.log_dir,
+                            tensorboard_log=log_dir,
                             learning_rate=config["learning_rate"],
                             gamma=config["gamma"],
                             ent_coef=config["ent_coef"],
                             max_grad_norm=config["max_grad_norm"],
                             policy_kwargs=policy_kwargs)
 
-                model.learn(total_timesteps=self.training_steps)
+                model.learn(total_timesteps=training_steps)
 
                 reward = evaluate_policy(model, vector_environment, n_eval_episodes=100)[0]
                 rewards.append(reward)
 
             tune.report(reward=np.mean(rewards), std=np.std(rewards))
+            tune.report(reward=1, std=1)
 
         config = {
             "learning_rate": tune.uniform(0.0004, 0.0012),
@@ -303,13 +341,16 @@ class MultiAgentResourceManager(BaseResourceManager):
         result = tune.run(
             train,
             config=config,
-            num_samples=2,
+            num_samples=15,
             progress_reporter=reporter
         )
 
         best_trial_config = result.get_best_trial("reward", mode="max").config
 
         ray.shutdown()
+
+        if "stage1_models" in policy_kwargs:
+            policy_kwargs["stage1_models"] = stage1_models
 
         del best_trial_config["use_entropy_loss"]
 
