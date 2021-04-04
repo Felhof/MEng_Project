@@ -8,7 +8,6 @@ from stable_baselines3.common.cmd_util import make_vec_env
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
-import uuid
 
 from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
 from resources.resource_allocation_problem import ResourceAllocationProblem
@@ -47,6 +46,8 @@ class BaseResourceManager:
 
     def plot_training_results(self, title="Learning Curve", xlabel="episode", ylabel="cumulative reward",
                               filename="reward", log_dir=None, show=False):
+        plt.clf()
+
         if log_dir is None:
             log_dir = self.log_dir
         x, y = ts2xy(load_results(log_dir), 'timesteps')
@@ -171,7 +172,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         self.training_steps = training_steps
         self.steps_per_episode = steps_per_episode
         self.search_hyperparameters = search_hyperparameters
-        self.model_name = "MARL"
+        self.model_name = "MARL_{}".format(rap["name"])
         if search_hyperparameters:
             self.model_name += "_tuned"
         self.learning_curve_plotter = LearningCurvePlotter()
@@ -201,7 +202,7 @@ class MultiAgentResourceManager(BaseResourceManager):
                 }
 
                 policy_kwargs = {}
-                name = self.model_name + "_" + str(idx)
+                name = self.model_name + "_stage1_lvl" + str(idx)
                 if self.search_hyperparameters and (stage1_hyperparams[idx] is None):
                     stage1_hyperparams[idx] = self.search_hyperparams(RestrictedResourceAllocationEnvironment,
                                                                       environment_kwargs,
@@ -227,7 +228,7 @@ class MultiAgentResourceManager(BaseResourceManager):
                 "max_timesteps": self.steps_per_episode
             }
             policy_kwargs = {"stage1_models": stage1_models}
-            name = self.model_name + "_" + "final"
+            name = self.model_name + "_" + "stage2"
 
             if self.search_hyperparameters and (stage2_hyperparams is None):
                 stage2_hyperparams = self.search_hyperparams(ResourceAllocationEnvironment,
@@ -251,8 +252,8 @@ class MultiAgentResourceManager(BaseResourceManager):
             stage1_plotter[n].save_results(csv_name)
             stage1_plotter[n].plot_average_results(filename=plot_name, epoch_length=self.training_steps)
 
-        stage2_plotter.save_results(self.model_name + "stage2_results")
-        stage2_plotter.plot_average_results(filename=self.model_name + "stage2_average_reward",
+        stage2_plotter.save_results(self.model_name + "_stage2_results")
+        stage2_plotter.plot_average_results(filename=self.model_name + "_stage2_average_reward",
                                             epoch_length=self.training_steps)
 
         self.model = multistage_model
@@ -310,6 +311,8 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         ray.shutdown()
 
+        del best_trial_config["use_entropy_loss"]
+
         return best_trial_config
 
     def train_submodel(self, environment_class, environment_kwargs, policy_kwargs,
@@ -325,8 +328,8 @@ class MultiAgentResourceManager(BaseResourceManager):
         }
 
         if hyperparams is not None:
-            for key, value in hyperparams.items():
-                config[key] = hyperparams[value]
+            for key in hyperparams.keys():
+                config[key] = hyperparams[key]
 
         env = environment_class(self.ra_problem, **environment_kwargs)
         vector_env = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)

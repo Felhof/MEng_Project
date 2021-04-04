@@ -73,7 +73,17 @@ wide_decomposable_problem = {
     "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01]),
     "restricted_tasks": [3],
     "locks": [[3, 2], [1, 0]],
-    "levels": 4
+}
+
+wide_decomposable_problem2 = {
+    "name": "deep_decomposable",
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.4, 0.01]),
+    "restricted_tasks": [2, 3],
+    "locks": [[[1, 2], [3, 2]], [[4, 3, 2], [1, 0]], [[1, 0], [1, 0]]]
 }
 
 

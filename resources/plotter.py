@@ -5,15 +5,17 @@ import math
 
 class LearningCurvePlotter:
 
-    def __init__(self, img_dir="img/"):
+    def __init__(self, data_dir="data/", img_dir="img/"):
         self.results = []
         self.img_dir = img_dir
+        self.data_dir = data_dir
 
     def add_result(self, result):
         self.results.append(result)
 
     def save_results(self, filename="results"):
-        with open('{}.csv'.format(filename), mode='w') as results_file:
+        location = self.data_dir + '{}.csv'.format(filename)
+        with open(location, mode='w') as results_file:
             results_writer = csv.writer(results_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             for result in self.results:
                 episodes, rewards = result
@@ -48,6 +50,7 @@ class LearningCurvePlotter:
 
         mean_rewards = [sum(bucket_reward) / len(bucket_reward) for bucket_reward in reward_buckets]
 
+        plt.clf()
         plt.figure(figsize=(20, 10))
         plt.title(title)
         plt.plot(range(len(mean_rewards)), mean_rewards, "b", label="Mean Reward")

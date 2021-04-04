@@ -35,5 +35,5 @@ if __name__ == "__main__":
 
     search_hyperparameters = args.hpsearch
 
-    main(MultiAgentResourceManager, problem, training_steps=2000, steps_per_episode=100,
+    main(MultiAgentResourceManager, problem, training_steps=1000, steps_per_episode=100,
          search_hyperparameters=search_hyperparameters)

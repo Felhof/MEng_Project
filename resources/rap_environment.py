@@ -190,7 +190,7 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
         locked_tasks = np.zeros(self.ra_problem.get_task_count())
         for task, locked_amount in task_locks.items():
-            locked_tasks[task] = max(locked_amount)
+            locked_tasks[task] = min(locked_amount)
 
         cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
         self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - cost_of_restricted_tasks
