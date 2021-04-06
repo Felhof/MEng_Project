@@ -161,24 +161,21 @@ class ResourceManager(BaseResourceManager):
 
 class MultiAgentResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, stage1_training_steps=20000, stage2_training_steps=50000, steps_per_episode=500, plotter=None,
-                 log_dir="/tmp/gym", search_hyperparameters=False):
+    def __init__(self, rap, training_config=None, plotter=None,
+                 log_dir="/tmp/gym"):
         super(MultiAgentResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.save_dir = "/tmp/gym/"
 
         self.restricted_tasks = rap["restricted_tasks"]
         self.locks = rap["locks"]
-        self.stage1_training_steps = stage1_training_steps
-        self.stage2_training_steps = stage2_training_steps
-        self.steps_per_episode = steps_per_episode
-        self.search_hyperparameters = search_hyperparameters
+        self.training_config = training_config
         self.model_name = "MARL_{}".format(rap["name"])
-        if search_hyperparameters:
+        if training_config["search_hyperparameters"]:
             self.model_name += "_tuned"
         self.learning_curve_plotter = LearningCurvePlotter()
 
-    def train_model(self, iterations=5):
+    def train_model(self, iterations=10):
 
         stage1_hyperparams = [None] * len(self.locks)
         stage1_plotter = [LearningCurvePlotter() for _ in range(len(self.locks))]
@@ -199,15 +196,16 @@ class MultiAgentResourceManager(BaseResourceManager):
                 environment_kwargs = {
                     "task_locks": task_locks,
                     "lower_lvl_models": lower_lvl_models,
-                    "max_timesteps": self.steps_per_episode
+                    "max_timesteps": self.training_config["steps_per_episode"]
                 }
 
                 policy_kwargs = {}
                 name = self.model_name + "_stage1_lvl" + str(idx)
-                if self.search_hyperparameters and (stage1_hyperparams[idx] is None):
+                if self.training_config["search_hyperparameters"] and (stage1_hyperparams[idx] is None):
                     stage1_hyperparams[idx] = self.search_hyperparams(RestrictedResourceAllocationEnvironment,
                                                                       environment_kwargs,
-                                                                      policy_kwargs)
+                                                                      policy_kwargs,
+                                                                      training_steps=self.training_config["stage1_training_steps"])
 
                 stage1_hyperparams[idx] = None
 
@@ -215,7 +213,8 @@ class MultiAgentResourceManager(BaseResourceManager):
                                             environment_kwargs,
                                             policy_kwargs,
                                             name=name,
-                                            hyperparams=stage1_hyperparams[idx])
+                                            hyperparams=stage1_hyperparams[idx],
+                                            training_steps=self.training_config["stage1_training_steps"])
 
                 result = ts2xy(load_results(self.log_dir), 'timesteps')
                 stage1_plotter[idx].add_result(result)
@@ -228,17 +227,17 @@ class MultiAgentResourceManager(BaseResourceManager):
                         lower_lvl_models[key] = model
 
             environment_kwargs = {
-                "max_timesteps": self.steps_per_episode
+                "max_timesteps": self.training_config["steps_per_episode"]
             }
             policy_kwargs = {"stage1_models": stage1_models}
             name = self.model_name + "_" + "stage2"
 
-            if self.search_hyperparameters and (stage2_hyperparams is None):
+            if self.training_config["search_hyperparameters"] and (stage2_hyperparams is None):
                 stage2_hyperparams = self.search_hyperparams(ResourceAllocationEnvironment,
                                                              environment_kwargs,
                                                              policy_kwargs,
                                                              policy=MultiStageActorCritic,
-                                                             training_steps=self.stage2_training_steps)
+                                                             training_steps=self.training_config["stage2_training_steps"])
 
             multistage_model = self.train_submodel(ResourceAllocationEnvironment,
                                                    environment_kwargs,
@@ -246,7 +245,7 @@ class MultiAgentResourceManager(BaseResourceManager):
                                                    policy=MultiStageActorCritic,
                                                    name=name,
                                                    hyperparams=stage2_hyperparams,
-                                                   training_steps=self.stage2_training_steps)
+                                                   training_steps=self.training_config["stage2_training_steps"])
 
             result = ts2xy(load_results(self.log_dir), 'timesteps')
             stage2_plotter.add_result(result)
@@ -255,16 +254,17 @@ class MultiAgentResourceManager(BaseResourceManager):
             csv_name = self.model_name + "_stage1_lvl{0}_results".format(n)
             plot_name = self.model_name + "_stage1_lvl{0}_average_reward".format(n)
             stage1_plotter[n].save_results(csv_name)
-            stage1_plotter[n].plot_average_results(filename=plot_name, epoch_length=self.stage1_training_steps)
+            stage1_plotter[n].plot_average_results(filename=plot_name,
+                                                   epoch_length=self.training_config["stage1_training_steps"])
 
         stage2_plotter.save_results(self.model_name + "_stage2_results")
         stage2_plotter.plot_average_results(filename=self.model_name + "_stage2_average_reward",
-                                            epoch_length=self.stage1_training_steps)
+                                            epoch_length=self.training_config["stage2_training_steps"])
 
         self.model = multistage_model
 
     def search_hyperparams(self, environment_class, environment_kwargs, policy_kwargs,
-                           policy=None, iterations=10, training_steps=20000):
+                           policy=None, training_steps=200):
 
         if policy is None:
             policy = "MlpPolicy"
@@ -309,7 +309,7 @@ class MultiAgentResourceManager(BaseResourceManager):
             
             rewards = []
 
-            for n in range(iterations):
+            for n in range(self.training_config["hpsearch_iterations"]):
                 model = A2C(policy,
                             vector_environment,
                             verbose=1,
@@ -380,7 +380,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         model = A2C(policy,
                     vector_env,
                     **config)
-        with ProgressBarManager(self.stage1_training_steps) as progress_callback:
+        with ProgressBarManager(training_steps) as progress_callback:
             model.learn(total_timesteps=training_steps, callback=progress_callback)
 
         self.environment = vector_env

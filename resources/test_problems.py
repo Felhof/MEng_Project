@@ -53,7 +53,7 @@ deep_decomposable_problem = {
 }
 
 deep_decomposable_problem2 = {
-    "name": "deep_decomposable",
+    "name": "deep_decomposable2",
     "rewards": np.array([2, 1, 2, 10]),
     "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
     "max_resource_availabilities": np.array([7, 4]),
@@ -65,7 +65,7 @@ deep_decomposable_problem2 = {
 }
 
 wide_decomposable_problem = {
-    "name": "deep_decomposable",
+    "name": "wide_decomposable",
     "rewards": np.array([2, 1, 2, 10]),
     "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
     "max_resource_availabilities": np.array([7, 4]),
@@ -76,7 +76,7 @@ wide_decomposable_problem = {
 }
 
 wide_decomposable_problem2 = {
-    "name": "deep_decomposable",
+    "name": "wide_decomposable2",
     "rewards": np.array([2, 1, 2, 10]),
     "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
     "max_resource_availabilities": np.array([7, 4]),
