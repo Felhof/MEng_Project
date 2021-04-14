@@ -207,8 +207,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                                                                       policy_kwargs,
                                                                       training_steps=self.training_config["stage1_training_steps"])
 
-                stage1_hyperparams[idx] = None
-
                 model = self.train_submodel(RestrictedResourceAllocationEnvironment,
                                             environment_kwargs,
                                             policy_kwargs,
@@ -292,6 +290,7 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         ra_problem = self.ra_problem
         log_dir = self.log_dir
+        hpsearch_iterations = self.training_config["hpsearch_iterations"]
 
         def train(config, checkpoint_dir=None):
 
@@ -309,7 +308,7 @@ class MultiAgentResourceManager(BaseResourceManager):
             
             rewards = []
 
-            for n in range(self.training_config["hpsearch_iterations"]):
+            for n in range(hpsearch_iterations):
                 model = A2C(policy,
                             vector_environment,
                             verbose=1,
@@ -326,7 +325,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                 rewards.append(reward)
 
             tune.report(reward=np.mean(rewards), std=np.std(rewards))
-            tune.report(reward=1, std=1)
 
         config = {
             "learning_rate": tune.uniform(0.0004, 0.0012),
@@ -356,6 +354,8 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         del best_trial_config["use_entropy_loss"]
 
+        print("Best config: ", best_trial_config)
+
         return best_trial_config
 
     def train_submodel(self, environment_class, environment_kwargs, policy_kwargs,
@@ -382,6 +382,8 @@ class MultiAgentResourceManager(BaseResourceManager):
                     **config)
         with ProgressBarManager(training_steps) as progress_callback:
             model.learn(total_timesteps=training_steps, callback=progress_callback)
+
+        #print("Training Reward: ", evaluate_policy(model, vector_env, n_eval_episodes=100)[0])
 
         self.environment = vector_env
 

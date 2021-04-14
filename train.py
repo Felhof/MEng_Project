@@ -32,8 +32,8 @@ if __name__ == "__main__":
     problem = test_problems[args.problem]
 
     training_config = {
-        "stage1_training_steps": 200,
-        "stage2_training_steps": 500,
+        "stage1_training_steps": 30000,
+        "stage2_training_steps": 60000,
         "steps_per_episode": 100,
         "training_iterations": 10,
         "search_hyperparameters": args.hpsearch,
