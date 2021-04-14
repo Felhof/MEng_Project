@@ -36,6 +36,7 @@ class BaseResourceManager:
         task_arrival_p = rap["task_arrival_p"]
         task_departure_p = rap["task_departure_p"]
 
+        self.model_name = ""
         self.plotter = plotter
 
         self.model = None
@@ -80,6 +81,11 @@ class BaseResourceManager:
             n_episodes,
             np.mean(optimal_strategy_rewards)
         ))
+
+    def save_model(self):
+        filename = "models/{}".format(self.model_name)
+        path = os.path.abspath(filename)
+        self.model.save(path)
 
     def get_model_solution(self, episode_length=500, render=False):
         reward = 0
@@ -136,8 +142,10 @@ class BaseResourceManager:
 
 class ResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, training_steps=50000, steps_per_episode=500, log_dir="/tmp/gym", plotter=None):
+    def __init__(self, rap, training_steps=60000, steps_per_episode=100, log_dir="/tmp/gym", plotter=None):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
+
+        self.model_name = rap["name"] + "_baseline"
 
         self.environment = ResourceAllocationEnvironment(self.ra_problem, steps_per_episode)
         # If the environment doesn't follow the interface, an error will be thrown
