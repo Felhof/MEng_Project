@@ -157,14 +157,27 @@ class ResourceManager(BaseResourceManager):
         self.training_steps = training_steps
 
     def train_model(self):
-        # Create callbacks
-        auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
+        plotter = LearningCurvePlotter()
 
-        self.model = A2C('MlpPolicy', self.vector_environment, verbose=1, tensorboard_log=self.log_dir)
+        for _ in range(10):
 
-        with ProgressBarManager(self.training_steps) as progress_callback:
-            # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
-            self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback, auto_save_callback])
+            # Create callbacks
+            auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
+
+            vector_environment = make_vec_env(lambda: self.environment, n_envs=1, monitor_dir=self.log_dir)
+            self.model = A2C('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
+
+            with ProgressBarManager(self.training_steps) as progress_callback:
+                # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
+                self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback, auto_save_callback])
+
+            result = ts2xy(load_results(self.log_dir), 'timesteps')
+            plotter.add_result(result)
+
+        csv_name = self.model_name + "_results"
+        plot_name = self.model_name + "_average_reward"
+        plotter.save_results(csv_name)
+        plotter.plot_average_results(filename=plot_name, epoch_length=self.training_steps)
 
 
 class MultiAgentResourceManager(BaseResourceManager):
@@ -190,7 +203,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         stage2_hyperparams = None
         stage2_plotter = LearningCurvePlotter()
 
-        for _ in range(iterations):
+        for _ in range(self.training_config["training_iterations"]):
             stage1_models = []
             lower_lvl_models = {}
 
@@ -322,7 +335,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                             verbose=1,
                             tensorboard_log=log_dir,
                             learning_rate=config["learning_rate"],
-                            gamma=config["gamma"],
                             ent_coef=config["ent_coef"],
                             max_grad_norm=config["max_grad_norm"],
                             policy_kwargs=policy_kwargs)
@@ -336,7 +348,6 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         config = {
             "learning_rate": tune.uniform(0.0004, 0.0012),
-            "gamma": tune.uniform(0.97, 0.999),
             "use_entropy_loss": tune.choice([True, False]),
             "ent_coef": tune.sample_from(lambda spec: spec.config.use_entropy_loss * np.random.uniform(0, 0.002)),
             "max_grad_norm": tune.uniform(0.25, 0.75)

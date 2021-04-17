@@ -52,6 +52,29 @@ deep_decomposable_problem = {
     "locks": [[3], [2], [1], [0]],
 }
 
+deep_decomposable_problem_alt = {
+    "name": "deep_decomposable_alt",
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [0, 2], [2, 1]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.01, 0.5]),
+    "restricted_tasks": [2],
+    "locks": [[2], [1], [0]],
+}
+
+deep_decomposable_problem3 = {
+    "name": "deep_decomposable_3",
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [0, 2], [2, 0]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.01, 0.5]),
+    "restricted_tasks": [2],
+    "locks": [[2], [1], [0]],
+}
+
+
 deep_decomposable_problem2 = {
     "name": "deep_decomposable2",
     "rewards": np.array([2, 1, 2, 10]),
@@ -63,6 +86,7 @@ deep_decomposable_problem2 = {
     "locks": [[[1], [3]], [[0], [3]], [[2], [2]], [[1], [2]], [[0], [2]], [[3], [1]],  [[2], [1]], [[1], [1]],
               [[0], [1]], [[4], [0]], [[3], [0]], [[2], [0]], [[3], [0]], [[4], [0]]],
 }
+
 
 wide_decomposable_problem = {
     "name": "wide_decomposable",
@@ -85,6 +109,18 @@ wide_decomposable_problem2 = {
     "restricted_tasks": [2, 3],
     "locks": [[[1, 2], [3, 2]], [[4, 3, 2], [1, 0]], [[1, 0], [1, 0]]]
 }
+
+wide_decomposable_problem2_alt = {
+    "name": "wide_decomposable2",
+    "rewards": np.array([2, 1, 2, 10]),
+    "resource_requirements": np.array([[0, 2], [1, 0], [1, 1], [2, 1]]),
+    "max_resource_availabilities": np.array([7, 4]),
+    "task_arrival_p": np.array([0.25, 0.25, 0.25, 0.25]),
+    "task_departure_p": np.array([0.6, 0.5, 0.01, 0.01]),
+    "restricted_tasks": [2, 3],
+    "locks": [[[1, 2], [3, 2]], [[4, 3, 2], [1, 0]], [[1, 0], [1, 0]]]
+}
+
 
 
 decomposable_problem2 = {
