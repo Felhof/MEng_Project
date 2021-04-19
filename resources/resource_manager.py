@@ -142,7 +142,8 @@ class BaseResourceManager:
 
 class ResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, training_steps=60000, steps_per_episode=100, log_dir="/tmp/gym", plotter=None):
+    def __init__(self, rap, training_steps=60000, steps_per_episode=100, log_dir="/tmp/gym", training_config=None,
+                 plotter=None):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir, plotter=plotter)
 
         self.model_name = rap["name"] + "_baseline"
