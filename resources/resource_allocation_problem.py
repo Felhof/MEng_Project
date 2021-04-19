@@ -1,7 +1,5 @@
 import numpy as np
 
-from MDP import MarkovDecisionProcess
-
 
 class ResourceAllocationProblem:
     def __init__(self, rewards, resource_requirements, max_resource_availabilities, tasks_arrival_p, tasks_departure_p):

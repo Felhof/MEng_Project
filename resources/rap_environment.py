@@ -4,7 +4,7 @@ import gym
 from gym import spaces
 import torch
 
-from MDP import MDPBuilder
+from resources.MDP import MDPBuilder
 
 
 class ResourceAllocationEnvironmentBase(gym.Env):
@@ -190,7 +190,7 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
         locked_tasks = np.zeros(self.ra_problem.get_task_count())
         for task, locked_amount in task_locks.items():
-            locked_tasks[task] = locked_amount
+            locked_tasks[task] = min(locked_amount)
 
         cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
         self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - cost_of_restricted_tasks
@@ -201,7 +201,7 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
         :return: (np.array)
         """
         super(RestrictedResourceAllocationEnvironment, self).reset()
-        self.tasks_in_processing[self.restricted_tasks] = self.amount_of_locked_tasks
+        self.tasks_in_processing[self.restricted_tasks] = [np.random.choice(r) for r in self.amount_of_locked_tasks]
         self.update_current_state()
 
         self.in_hull = False
@@ -211,7 +211,15 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
     def finished_tasks(self):
         departure_probabilities = self.ra_problem.get_task_departure_p()
         finished_tasks = np.random.binomial(self.tasks_in_processing, departure_probabilities)
-        finished_tasks[self.restricted_tasks] = 0
+
+        def out_of_range(task_idx):
+            running = self.tasks_in_processing[task_idx] - finished_tasks[task_idx]
+            idx = self.restricted_tasks.index(task_idx)
+            return not(self.amount_of_locked_tasks[idx][0] <= running <= self.amount_of_locked_tasks[idx][-1])
+
+        reset_idxs = list(filter(out_of_range, self.restricted_tasks))
+        finished_tasks[reset_idxs] = 0
+
         return finished_tasks
 
     def calculate_reward(self, allocations):
