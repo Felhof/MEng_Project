@@ -1,6 +1,7 @@
 import argparse
 
-from resources.resource_manager import ResourceManager, MultiAgentResourceManager
+from resources.resourcemanager.resource_manager import ResourceManager
+from resources.resourcemanager.marl_resource_manager import MultiAgentResourceManager
 import resources.test_problems
 
 
