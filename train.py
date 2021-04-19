@@ -1,14 +1,15 @@
 import argparse
 
-from resources.resource_manager import MultiAgentResourceManager
+from resources.resource_manager import ResourceManager, MultiAgentResourceManager
 import resources.test_problems
 
 
 def main(resource_manager, resource_problem_dict, training_config):
-    rm = resource_manager(resource_problem_dict,
-                          training_config=training_config)
+    #rm = resource_manager(resource_problem_dict,
+    #                      training_config=training_config)
+
+    rm = ResourceManager(resource_problem_dict)
     rm.train_model()
-    rm.plot_training_results()
     rm.run_model()
 
 
@@ -25,8 +26,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     test_problems = {
+        "tricky_problem": resources.test_problems.tricky_problem,
         "deep_decomposable": resources.test_problems.deep_decomposable_problem,
-        "wide_decomposable": resources.test_problems.wide_decomposable_problem2
+        "deep_decomposable_alt": resources.test_problems.deep_decomposable_problem_alt,
+        "wide_decomposable": resources.test_problems.wide_decomposable_problem2,
+        "wide_decomposable_alt": resources.test_problems.wide_decomposable_problem2_alt
     }
 
     problem = test_problems[args.problem]

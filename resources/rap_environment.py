@@ -213,12 +213,13 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
         finished_tasks = np.random.binomial(self.tasks_in_processing, departure_probabilities)
 
         def out_of_range(task_idx):
-            running = self.tasks_in_processing[task_idx]
+            running = self.tasks_in_processing[task_idx] - finished_tasks[task_idx]
             idx = self.restricted_tasks.index(task_idx)
             return not(self.amount_of_locked_tasks[idx][0] <= running <= self.amount_of_locked_tasks[idx][-1])
 
         reset_idxs = list(filter(out_of_range, self.restricted_tasks))
         finished_tasks[reset_idxs] = 0
+
         return finished_tasks
 
     def calculate_reward(self, allocations):
