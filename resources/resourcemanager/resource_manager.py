@@ -6,7 +6,7 @@ from stable_baselines3.common.cmd_util import make_vec_env
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 
 from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
-from resources.rap_environment import ResourceAllocationEnvironment
+from resources.environments.rap_environment import ResourceAllocationEnvironment
 from resources.plotter import LearningCurvePlotter
 
 

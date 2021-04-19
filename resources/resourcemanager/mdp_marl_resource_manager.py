@@ -4,7 +4,7 @@ from stable_baselines3 import A2C
 from stable_baselines3.common.cmd_util import make_vec_env
 
 from resources.callbacks import ProgressBarManager
-from resources.rap_environment import MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
+from resources.environments.rap_environment import MDPResourceAllocationEnvironment, RestrictedMDPResourceAllocationEnvironment
 from resources.MDP import MDPBuilder, RestrictedMDP
 from resources import MTA
 from resources.multistage_model import MultiStageActorCritic

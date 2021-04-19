@@ -10,7 +10,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
 
 from resources.callbacks import ProgressBarManager
-from resources.rap_environment import ResourceAllocationEnvironment, RestrictedResourceAllocationEnvironment
+from resources.environments.rap_environment import ResourceAllocationEnvironment, RestrictedResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
 from resources.plotter import LearningCurvePlotter
 
