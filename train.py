@@ -1,14 +1,13 @@
 import argparse
 
-from resources.resource_manager import ResourceManager, MultiAgentResourceManager
+from resources.resourcemanager.resource_manager import ResourceManager
+from resources.resourcemanager.marl_resource_manager import MultiAgentResourceManager
 import resources.test_problems
 
 
 def main(resource_manager, resource_problem_dict, training_config):
-    #rm = resource_manager(resource_problem_dict,
-    #                      training_config=training_config)
-
-    rm = ResourceManager(resource_problem_dict)
+    rm = resource_manager(resource_problem_dict,
+                          training_config=training_config)
     rm.train_model()
     rm.run_model()
 
@@ -22,6 +21,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--hpsearch', action='store_true',
                         help='Train with hyperparameter search')
+
+    parser.add_argument('--baseline', action='store_true',
+                        help='calculate baseline result')
 
     args = parser.parse_args()
 
@@ -44,4 +46,9 @@ if __name__ == "__main__":
         "hpsearch_iterations": 10
     }
 
-    main(MultiAgentResourceManager, problem, training_config)
+    if args.baseline:
+        resource_manager = ResourceManager
+    else:
+        resource_manager = MultiAgentResourceManager
+
+    main(resource_manager, problem, training_config)

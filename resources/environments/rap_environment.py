@@ -68,13 +68,6 @@ class ResourceAllocationEnvironmentBase(gym.Env):
         if mode != 'console':
             raise NotImplementedError()
 
-        #print("Last action: ", self.last_action)
-        #print("Last Reward: ", self.last_reward)
-        #print("Last departed: ", self.last_departed)
-        #print("Resources available: ", self.resources_available)
-        #print("Tasks in processing: ", self.tasks_in_processing)
-        #print("Arrivals: ", self.arrivals)
-
     def reset(self):
         self.current_timestep = 0
 
