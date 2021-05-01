@@ -3,10 +3,10 @@ import numpy as np
 import torch
 
 
-class RoomEnvironment(gym.Env):
+class RoomEnvironment:
 
     def __init__(self, maze=None, room=None,
-                 lower_levels=None, episode_length=300, show=False):
+                 lower_levels=None, episode_length=1000, show=False):
         self.maze = maze
         self.maze.position = room.reset()
         self.room = room
@@ -28,9 +28,10 @@ class RoomEnvironment(gym.Env):
         if not in_room:
             for (lower_lvl_room, lower_lvl_model) in self.lower_lvls:
                 if lower_lvl_room.inside(next_position):
-                    state_tensor = torch.tensor(next_position.to_numpy()).unsqueeze(0)
-                    _, value, _ = lower_lvl_model.policy.forward(state_tensor)
-                    reward = value.item() * (1 - self.current_step / self.episode_length)
+                    state_tensor = torch.tensor(next_position.to_numpy(), dtype=torch.float32).unsqueeze(0)
+                    lower_level_q_values = lower_lvl_model.predict_q_values(state_tensor)
+                    action_value = lower_level_q_values.squeeze(0)[action]
+                    reward = action_value #* (1 - self.current_step / self.episode_length)
                     done = True
                     break
             if not done:
@@ -53,8 +54,12 @@ class RoomEnvironment(gym.Env):
         observation = self.maze.position
         return observation.to_numpy()
 
-    def render(self, mode='human'):
-        self.maze.draw()
+    def render(self, show_policy=False, model=None):
+        image = self.maze.draw()
+        if show_policy:
+            image = self.maze.draw_policy(image, model, self.maze.position, room=self.room)
+        self.maze.show_image(image)
+
 
     def close(self):
         pass

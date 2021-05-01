@@ -77,7 +77,7 @@ class BaseResourceManager:
             observation, r, _, _ = self.vector_environment.step(action)
             reward += r
             if render:
-                self.vector_environment.render(mode='console')
+                self.vector_environment.show(mode='console')
 
         return reward
 

@@ -13,10 +13,10 @@ class SACAgent:
     TARGET_NETWORK_UPDATE_INTERVAL = 25
     TRAINING_TIME = 600
 
-    RIGHT = 0
-    UP = 1
-    LEFT = 2
-    DOWN = 3
+    UP = 0
+    RIGHT = 1
+    DOWN = 2
+    LEFT = 3
 
     # Function to initialise the agent
     def __init__(self):
@@ -149,7 +149,7 @@ class SACAgent:
         return action_probabilities, log_action_probabilities
 
     # Function to get the greedy action for a particular state
-    def get_greedy_action(self, state):
+    def predict(self, state):
         action_probabilities = self.get_action_probabilities(state)
         discrete_action = np.argmax(action_probabilities)
         return discrete_action
@@ -170,6 +170,11 @@ class SACAgent:
     def update_target_networks(self):
         self.critic_target.load_state_dict(self.critic_local.state_dict())
         self.critic_target2.load_state_dict(self.critic_local2.state_dict())
+
+    def predict_q_values(self, state):
+        q_values = self.critic_local(state)
+        q_values2 = self.critic_local2(state)
+        return torch.min(q_values, q_values2)
 
 
 # The Network class inherits the torch.nn.Module class, which represents a neural network.
