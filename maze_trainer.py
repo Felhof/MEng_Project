@@ -7,8 +7,10 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+import torch
 
-def main(config, iterations=1):
+
+def main(config, iterations=4):
     maze = Maze(config)
     maze_models = []
 
@@ -71,32 +73,48 @@ def train_maze_model(maze, training_steps, name, show=False):
     return maze_model
 
 
-def train_room_model(maze=None, room=None, lower_lvls=None, training_steps=10000, title="Room_Model", display_on=False, plot=False):
+def train_room_model(maze=None, room=None, lower_lvls=None, training_steps=10000, episode_length=400,
+                     backup_frequency=1, title="Room_Model", display_on=False, plot=False):
 
-    environment = RoomEnvironment(maze=maze, room=room, lower_levels=lower_lvls)
+    environment = RoomEnvironment(maze=maze, room=room, lower_levels=lower_lvls, episode_length=episode_length)
 
-    room_model = SACAgent()
+    room_model = SACAgent(episode_length=episode_length)
 
     state = environment.reset()
 
     reward_per_episode = []
-    episode_reward = 0
+    current_episode_reward = 0
+
+    backup_model = None
+    best_evaluation = -10**5
+
+    episode = 1
 
     for n in range(training_steps):
         print("Episode {0}/{1}".format(n + 1, training_steps), end='\r')
         action = room_model.get_next_action(state)
         next_state, reward, done, info = environment.step(action)
-        episode_reward += reward
+        current_episode_reward += reward
         room_model.set_next_state_and_reward(next_state, reward)
         state = next_state
         if done:
-            reward_per_episode.append(episode_reward)
-            episode_reward = 0
+            if episode % backup_frequency == 0:
+                evaluation_score = evaluate_model(room_model, environment)
+                if evaluation_score > best_evaluation:
+                    best_evaluation = evaluation_score
+                    backup_model = room_model.create_backup_model()
+            episode += 1
+            reward_per_episode.append(current_episode_reward)
+            current_episode_reward = 0
             state = environment.reset()
         # Optionally, show the environment
         if display_on:
             environment.render(show_policy=False, model=room_model)
             time.sleep(0.02)
+
+    evaluation_score = evaluate_model(room_model, environment)
+    if evaluation_score > best_evaluation:
+        backup_model = room_model.create_backup_model()
 
     if plot:
         position = environment.reset()
@@ -115,8 +133,20 @@ def train_room_model(maze=None, room=None, lower_lvls=None, training_steps=10000
         plt.axhline(y=0, color='r', linestyle='-')
         plt.savefig("../img/{}_learning_curve".format(title))
 
-    return room_model, environment
+    return backup_model, environment
 
+
+def evaluate_model(model, environment, steps=150):
+    state = environment.reset()
+    total_reward = 0
+    for _ in range(steps):
+        action = model.predict(state)
+        next_state, reward, done, info = environment.step(action)
+        total_reward += reward
+        if done:
+            break
+        state = next_state
+    return total_reward
 
 simple_maze_config = {
     "size": 1,
@@ -159,7 +189,7 @@ example_maze_config = {
 
 two_rooms_two_areas_maze_config = {
     "name": "2-rooms-2-areas-b",
-    "training_steps": [10000, 20000],
+    "training_steps": [5000, 10000],
     "size": 1,
     "start": Point(0.4, 0.8),
     "goal": Point(0.9, 0.1),
@@ -167,12 +197,14 @@ two_rooms_two_areas_maze_config = {
         {
             "lvl": 0,
             "area": Area([Rectangle(Point(0., 0.), Point(1., 0.5))]),
-            "entrypoints": [Point(0.35, 0.45), Point(0.45, 0.45)]
+            "entrypoints": [Point(0.35, 0.45), Point(0.45, 0.45)],
+            "policy color": "blue"
         },
         {
             "lvl": 1,
             "area": Area([Rectangle(Point(0., 0.5), Point(1., 1.))]),
-            "entrypoints": [Point(0.4, 0.8)]
+            "entrypoints": [Point(0.4, 0.8)],
+            "policy color": "red"
         }
     ],
     "walls": [Rectangle(Point(0., 0.4), Point(0.3, 0.5)), Rectangle(Point(0.5, 0.4), Point(1., 0.5))]
@@ -302,7 +334,71 @@ two_paths_maze_config = {
               Rectangle(Point(2.2, 1.3), Point(2.5, 1.4))]
 }
 
+u_turn_maze_config = {
+    "name": "u_turn",
+    "training_steps": [20000, 40000, 40000],
+    "size": 2.5,
+    "start": Point(0.85, 0.75),
+    "goal": Point(2.3, 1.0),
+    "rooms": [
+        {
+            "lvl": 0,
+            "area": Area([Rectangle(Point(1.7, 0.6), Point(2.5, 1.4))]),
+            "entrypoints": [Point(2.05, 0.65), Point(2.15, 0.65),
+                            Point(2.05, 1.35), Point(2.15, 1.35)],
+            "policy color": "red"
+        },
+        {
+            "lvl": 2,
+            "area": Area([Rectangle(Point(0.8, 1.3), Point(2.5, 2.5))]),
+            "entrypoints": [Point(1.35, 1.35), Point(1.45, 1.35)],
+            "policy color": "blue"
+        },
+        {
+            "lvl": 3,
+            "area": Area([Rectangle(Point(0.8, 0.6), Point(1.7, 1.3))]),
+            "entrypoints": [Point(0.85, 0.75)],
+            "policy color": "pink"
+        }
+    ],
+    "walls": [Rectangle(Point(0.8, 0.0), Point(0.9, 0.1)), Rectangle(Point(0.8, 0.3), Point(0.9, 0.7)),
+              Rectangle(Point(0.8, 0.6), Point(2.0, 0.7)), Rectangle(Point(2.2, 0.6), Point(2.5, 0.7)),
+              Rectangle(Point(0.8, 0.9), Point(0.9, 2.5)), Rectangle(Point(0.9, 1.3), Point(1.3, 1.4)),
+              Rectangle(Point(1.7, 0.6), Point(1.8, 1.4)), Rectangle(Point(1.5, 1.3), Point(2.0, 1.4)),
+              Rectangle(Point(2.2, 1.3), Point(2.5, 1.4))]
+}
+
+
+hard_turn_maze_config = {
+    "name": "hard_turn",
+    "training_steps": [20000, 40000],
+    "size": 2.5,
+    "start": Point(1.35, 1.35),
+    "goal": Point(2.3, 1.0),
+    "rooms": [
+        {
+            "lvl": 0,
+            "area": Area([Rectangle(Point(1.7, 0.6), Point(2.5, 1.4))]),
+            "entrypoints": [Point(2.05, 1.35), Point(2.15, 1.35)],
+            "policy color": "red"
+        },
+        {
+            "lvl": 2,
+            "area": Area([Rectangle(Point(0.8, 1.3), Point(2.5, 2.5))]),
+            "entrypoints": [Point(1.35, 1.35), Point(1.45, 1.35)],
+            "policy color": "blue"
+        }
+    ],
+    "walls": [Rectangle(Point(0.8, 0.0), Point(0.9, 0.1)), Rectangle(Point(0.8, 0.3), Point(0.9, 0.7)),
+              Rectangle(Point(0.8, 0.6), Point(2.0, 0.7)), Rectangle(Point(2.2, 0.6), Point(2.5, 0.7)),
+              Rectangle(Point(0.8, 0.9), Point(0.9, 2.5)), Rectangle(Point(0.9, 1.3), Point(1.3, 1.4)),
+              Rectangle(Point(1.7, 0.6), Point(1.8, 1.4)), Rectangle(Point(1.5, 1.3), Point(2.0, 1.4)),
+              Rectangle(Point(2.2, 1.3), Point(2.5, 1.4)), Rectangle(Point(1.3, 1.2), Point(1.5, 1.3)),
+              Rectangle(Point(2.0, 0.5), Point(2.2, 0.6))]
+}
+
 
 if __name__ == "__main__":
-    main(two_paths_maze_config)
+    main(two_rooms_two_areas_maze_config)
+    main(hard_turn_maze_config)
     #main(four_rooms_four_areas_maze_config)

@@ -7,8 +7,7 @@ class SACAgent:
 
     ALPHA = 0.1
     BATCH_SIZE = 100
-    DISCOUNT_RATE = 0.9
-    EPISODE_LENGTH = 1000
+    DISCOUNT_RATE = 0.90
     NUM_ACTIONS = 4
     TARGET_NETWORK_UPDATE_INTERVAL = 25
     TRAINING_TIME = 600
@@ -19,9 +18,9 @@ class SACAgent:
     LEFT = 3
 
     # Function to initialise the agent
-    def __init__(self):
+    def __init__(self, episode_length=400):
         # Set the episode length
-        self.episode_length = self.EPISODE_LENGTH
+        self.episode_length = episode_length
         # Reset the total number of steps which the agent has taken
         self.num_steps_taken = 0
         # The state variable stores the latest state of the agent in the environment
@@ -175,6 +174,16 @@ class SACAgent:
         q_values = self.critic_local(state)
         q_values2 = self.critic_local2(state)
         return torch.min(q_values, q_values2)
+
+    def create_backup_model(self):
+        backup_model = SACAgent()
+        backup_model.critic_local.load_state_dict(self.critic_local.state_dict())
+        backup_model.critic_local2.load_state_dict(self.critic_local2.state_dict())
+        backup_model.critic_target.load_state_dict(self.critic_target.state_dict())
+        backup_model.critic_target2.load_state_dict(self.critic_target2.state_dict())
+        backup_model.actor_local.load_state_dict(self.actor_local.state_dict())
+
+        return backup_model
 
 
 # The Network class inherits the torch.nn.Module class, which represents a neural network.

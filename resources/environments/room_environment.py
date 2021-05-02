@@ -6,7 +6,7 @@ import torch
 class RoomEnvironment:
 
     def __init__(self, maze=None, room=None,
-                 lower_levels=None, episode_length=1000, show=False):
+                 lower_levels=None, episode_length=400, show=False):
         self.maze = maze
         self.maze.position = room.reset()
         self.room = room
