@@ -24,7 +24,7 @@ class LearningCurvePlotter:
 
     def plot_average_results(self, title="average reward", filename="average_reward", epoch_length=20000):
 
-        reward_buckets = [[] for _ in range(math.ceil(epoch_length / 100))]
+        reward_buckets = [[] for _ in range(math.ceil(epoch_length / 500))]
 
         for result in self.results:
             episodes, rewards = result
@@ -32,7 +32,9 @@ class LearningCurvePlotter:
             bucket = 1
 
             for idx, episode in enumerate(episodes):
-                if episode > bucket * 100:
+                if bucket >= len(reward_buckets):
+                    break
+                if episode > bucket * 500:
                     if len(bucket_rewards) >= 1:
                         avg_bucket_reward = sum(bucket_rewards) / len(bucket_rewards)
                     elif bucket > 1:

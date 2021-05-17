@@ -3,13 +3,20 @@ import matplotlib.pyplot as plt
 
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 import numpy as np
+from stable_baselines3 import A2C, PPO
 
 from resources.resource_allocation_problem import ResourceAllocationProblem
 
 
+algorithms = {
+    "A2C": A2C,
+    "PPO": PPO
+}
+
+
 class BaseResourceManager:
 
-    def __init__(self, rap, log_dir="/tmp/gym"):
+    def __init__(self, rap, log_dir="/tmp/gym", algorithm="A2C"):
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
@@ -23,6 +30,7 @@ class BaseResourceManager:
 
         self.model = None
         self.environment = None
+        self.algorithm = algorithms.get(algorithm, A2C)
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
@@ -103,20 +111,37 @@ class BaseResourceManager:
         for item in policy.items():
             print("{0} : {1}".format(item[0], list(item[1])))
 
-    def run_model(self, n_steps=50):
+    def run_model(self, n_steps=250, save=False, name="", file_location="data"):
+        log = []
         obs = self.environment.reset()
         total_reward = 0
         for step in range(n_steps):
             action, _ = self.model.predict(obs, deterministic=True)
-            print("Sate: ", obs)
-            print("Action: ", action)
+            log.append("Sate: " + str(obs))
+            log.append("Action: " + str(action))
             obs, reward, done, info = self.environment.step(action)
+            if "lower level action" in info[0]:
+                log.append("lower level action: " + str(info[0]["lower level action"]))
             total_reward += reward
-            print('reward: ', reward, 'done: ', done)
+            log.append('reward: ' + str(reward))
+            log.append('done: ' + str(done))
+            if "lower level state" in info[0]:
+                log.append("lower level state:" + str(info[0]["lower level state"]))
             if done:
                 # Note that the VecEnv resets automatically
                 # when a done signal is encountered
-                print("Goal reached!", "reward=", reward)
+                log.append("Goal reached! Reward= " + str(reward))
                 obs = self.environment.reset()
 
-        print("Total reward: ", total_reward)
+        log.append("Total reward: " + str(total_reward))
+
+        if not save:
+            for line in log:
+                print(line)
+        else:
+            filename = file_location + "/" + name + "_policy.txt"
+            text = "\n".join(log)
+            with open(filename, 'w') as file:
+                file.write(text)
+
+        return total_reward[0]
