@@ -2,7 +2,6 @@ import argparse
 import csv
 
 from resources.resourcemanager.resource_manager import ResourceManager
-from stable_baselines3 import A2C, PPO, DDPG
 from resources.resourcemanager.adp_resource_manager import ADPResourceManager
 import resources.test_problems
 
@@ -64,8 +63,8 @@ if __name__ == "__main__":
     problem = test_problems[args.problem]
 
     training_config = {
-        "stage1_training_steps": 50000,
-        "stage2_training_steps": 50000,
+        "stage1_training_steps": 100,
+        "stage2_training_steps": 100,
         "steps_per_episode": 100,
         "training_iterations": 10,
         "search_hyperparameters": args.hpsearch,
@@ -78,7 +77,6 @@ if __name__ == "__main__":
         resource_manager = ResourceManager
         name = "_baseline"
     else:
-        #resource_manager = MultiAgentResourceManager
         resource_manager = ADPResourceManager
 
     if args.algo is None:

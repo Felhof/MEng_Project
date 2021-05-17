@@ -1,23 +1,23 @@
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
 
 import numpy as np
-from stable_baselines3 import A2C, PPO, DDPG
 from stable_baselines3.common.cmd_util import make_vec_env
 import matplotlib.pyplot as plt
 import itertools
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import TargetedResourceAllocationEnvironment, RegionalResourceAllocationEnvironment
+from resources.environments.rap_environment import RegionalResourceAllocationEnvironment
 from resources.environments.adp_environment import ADPResourceAllocationEnvironment
+from resources.environments.rap_environment import Region, TaskCondition
 
 
-def binary_sequences(len):
-    assert len >= 1
+def binary_sequences(n):
+    assert n >= 1
     length_1_sequences = [[0], [1]]
-    if len == 1:
+    if n == 1:
         return length_1_sequences
     else:
-        lower_length_sequences = binary_sequences(len - 1)
+        lower_length_sequences = binary_sequences(n - 1)
         sequences = [sequence + last_digit
                      for sequence, last_digit
                      in itertools.product(lower_length_sequences, length_1_sequences)]
@@ -31,12 +31,11 @@ class ADPResourceManager(BaseResourceManager):
 
         self.save_dir = "/tmp/gym/"
 
-        self.regions = rap["regions"]
-        self.region_id_to_abstract_actions = rap["region_id_to_abstract_actions"]
+        self.regions = self.create_regions(rap)
         self.abstract_action_to_direction = rap["abstract_action_to_direction"]
         self.direction_to_action = rap["direction_to_action"]
-        self.n_abstract_actions = rap["n_abstract_actions"]
-        self.n_locked_tasks = rap["n_locked_tasks"]
+        self.n_abstract_actions = len(self.abstract_action_to_direction)
+        self.n_locked_tasks = len(rap["locked_tasks"])
         self.actions = list(range(self.n_abstract_actions))
         binary_states = [sequence for sequence in binary_sequences(self.n_locked_tasks)]
         region_states = list(range(len(self.regions)))
@@ -48,49 +47,69 @@ class ADPResourceManager(BaseResourceManager):
         self.environment = None
         self.policy = None
 
+    def create_regions(self, rap):
+        fixed_ids = []
+        fixed_values = []
+        fluent_ids = rap["locked_tasks"]
+        resource_requirements = rap["resource_requirements"]
+        budget = rap["max_resource_availabilities"]
+        possible_task_values = self.find_possible_task_values(fixed_ids, fixed_values, fluent_ids,
+                                                              resource_requirements, budget)
+
+        regions = []
+        for values in possible_task_values:
+            task_conditions = []
+            for task_id, value in zip(rap["locked_tasks"], values):
+                task_condition = TaskCondition(task_id=task_id, min_value=int(value), max_value=int(value))
+                task_conditions.append(task_condition)
+            region = Region(task_conditions)
+            regions.append(region)
+        return regions
+
+    def find_possible_task_values(self, fixed_ids, fixed_values, fluent_ids, resource_requirements, budget):
+        assert len(fixed_ids) == len(fixed_values)
+        assert len(fluent_ids) > 0
+
+        valid_values = []
+        if len(fixed_ids) > 0:
+            fixed_cost = np.sum(resource_requirements[fixed_ids] * np.array([fixed_values]).T, axis=0)
+        else:
+            fixed_cost = np.array([0, 0, 0])
+        fluent_id = fluent_ids[0]
+        value = 0
+        within_budget = True
+        while within_budget:
+            final_costs = fixed_cost + resource_requirements[fluent_id]*value
+            if (final_costs > budget).any():
+                within_budget = False
+            elif len(fluent_ids) == 1:
+                values = np.append(fixed_values, value)
+                valid_values.append(values)
+            else:
+                new_fixed_ids = fixed_ids + [fluent_ids[0]]
+                new_fixed_values = fixed_values + [value]
+                new_fluent_ids = fluent_ids[1:]
+                values = self.find_possible_task_values(new_fixed_ids, new_fixed_values, new_fluent_ids,
+                                                        resource_requirements, budget)
+                valid_values += values
+            value += 1
+
+        return valid_values
+
     def train_model(self):
-        regional_policies = {id: {} for id in self.regions.keys()}
-        for id, region in self.regions.items():
-            regional_policies[id] = {key: value for key, value in self.direction_to_action.items() }
-            abstract_action_specifications = self.region_id_to_abstract_actions[id]
-            for abstract_action_specification in abstract_action_specifications:
-                direction = abstract_action_specification.direction
-                target_region_id = abstract_action_specification.target_region_id
-                target_region = self.regions[target_region_id]
-                name = "{0}_AA_from_{1}_to_{2}".format(self.model_name, id, target_region_id)
-                stay = direction == "Stay"
-                abstract_action = self.train_abstract_action(region, target_region, name=name, stay=stay)
-                self.model = abstract_action
-                super(ADPResourceManager, self).run_model(save=True, name=name)
-                regional_policies[id][direction] = abstract_action
+        regional_policies = {id: {} for id in enumerate(self.regions)}
+        for region_id, region in enumerate(self.regions):
+            regional_policies[region_id] = {key: value for key, value in self.direction_to_action.items()}
+            name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
+            abstract_action = self.train_abstract_action(target_region=region, name=name)
+            self.model = abstract_action
+            super(ADPResourceManager, self).run_model(save=True, name=name)
+            regional_policies[region_id]["Stay"] = abstract_action
 
-        #self.model = self.train_adp_model(regional_policies=regional_policies)
+        self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
+                                              show=self.training_config.get("show", False))
 
-        self.environment = ADPResourceAllocationEnvironment(self.ra_problem, self.regions, regional_policies,
-                                                       abstract_action_to_direction=self.abstract_action_to_direction,
-                                                       n_locked_tasks=self.n_locked_tasks,
-                                                       n_abstract_actions=self.n_abstract_actions)
-        policy, rewards = self.monte_carlo_control(2500)
-        self.policy = policy
-        print(policy)
-
-        title = "Learning Curve"
-        xlabel = "episode"
-        ylabel = "cumulative reward"
-        filename = "{}_mc_learning_curve".format(self.model_name)
-
-        plt.figure(figsize=(20, 10))
-        plt.title(title)
-        plt.plot(range(len(rewards)), rewards, "b", label="Cumulative Reward")
-        plt.legend()
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.axhline(y=0, color='r', linestyle='-')
-        plt.savefig("img/" + filename)
-        plt.show()
-
-
-    def train_abstract_action(self, start_region, target_region, name="", stay=False):
+    def train_abstract_action(self, target_region=None, name=""):
         environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
         vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
         self.environment = vector_environment
@@ -105,7 +124,7 @@ class ADPResourceManager(BaseResourceManager):
 
         return abstract_action
 
-    def train_adp_model(self, regional_policies=None):
+    def train_adp_model_with_deep_learning(self, regional_policies=None):
         regions = self.regions
         environment = ADPResourceAllocationEnvironment(self.ra_problem, regions, regional_policies,
                                                        abstract_action_to_direction=self.abstract_action_to_direction,
@@ -125,6 +144,31 @@ class ADPResourceManager(BaseResourceManager):
 
         return adp_model
 
+    def train_adp_model_with_monte_carlo(self, regional_policies=None, show=False):
+        self.environment = ADPResourceAllocationEnvironment(self.ra_problem, self.regions, regional_policies,
+                                                            abstract_action_to_direction=self.abstract_action_to_direction,
+                                                            n_locked_tasks=self.n_locked_tasks,
+                                                            n_abstract_actions=self.n_abstract_actions)
+        policy, rewards = self.monte_carlo_control(2500)
+        self.policy = policy
+
+        if show:
+            print(policy)
+
+            title = "Learning Curve"
+            xlabel = "episode"
+            ylabel = "cumulative reward"
+            filename = "{}_mc_learning_curve".format(self.model_name)
+
+            plt.figure(figsize=(20, 10))
+            plt.title(title)
+            plt.plot(range(len(rewards)), rewards, "b", label="Cumulative Reward")
+            plt.legend()
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.axhline(y=0, color='r', linestyle='-')
+            plt.savefig("img/" + filename)
+            plt.show()
 
     # Implementation of on-policy e-greedy first-visit MC control
     def monte_carlo_control(self, n, gamma=0.9):
@@ -231,8 +275,6 @@ class ADPResourceManager(BaseResourceManager):
             log.append('done: ' + str(done))
             log.append("lower level state:" + str(info["lower level state"]))
             if done:
-                # Note that the VecEnv resets automatically
-                # when a done signal is encountered
                 log.append("Goal reached! Reward= " + str(reward))
                 state = tuple(self.environment.reset())
 
@@ -244,7 +286,6 @@ class ADPResourceManager(BaseResourceManager):
             file.write(text)
 
         return total_reward
-
 
 
 class AbstractActionSpecification:
