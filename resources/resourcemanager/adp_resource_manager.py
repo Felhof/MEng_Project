@@ -1,4 +1,6 @@
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
+import multiprocessing as mp
+import os
 
 import numpy as np
 from stable_baselines3.common.cmd_util import make_vec_env
@@ -97,22 +99,32 @@ class ADPResourceManager(BaseResourceManager):
         return valid_values
 
     def train_model(self):
+        num_workers = mp.cpu_count() - 2
+        pool = mp.Pool(num_workers)
+        abstract_action_results = {}
         regional_policies = {id: {} for id in enumerate(self.regions)}
         for region_id, region in enumerate(self.regions):
             regional_policies[region_id] = {key: value for key, value in self.direction_to_action.items()}
-            name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
-            abstract_action = self.train_abstract_action(target_region=region, name=name)
+            abstract_action_results[region_id] = pool.apply_async(self.train_abstract_action, (),
+                                                                  {"target_region": region, "region_id": region_id})
+
+        pool.close()
+
+        actions_with_region_ids = [(key, aa_result.get()) for key, aa_result in abstract_action_results.items()]
+        for region_id, aa_path in actions_with_region_ids:
+            abstract_action = self.algorithm.load(aa_path)
             self.model = abstract_action
+            self.environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
+            name = aa_path.split('/')[-1]
             super(ADPResourceManager, self).run_model(save=True, name=name)
             regional_policies[region_id]["Stay"] = abstract_action
 
         self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
                                               show=self.training_config.get("show", False))
 
-    def train_abstract_action(self, target_region=None, name=""):
+    def train_abstract_action(self, target_region=None, region_id=0):
         environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
         vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
-        self.environment = vector_environment
         abstract_action = self.algorithm('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
 
         training_steps = self.training_config["stage1_training_steps"]
@@ -120,9 +132,11 @@ class ADPResourceManager(BaseResourceManager):
             # This is equivalent to callback=CallbackList([progress_callback, auto_save_callback])
             abstract_action.learn(total_timesteps=training_steps, callback=progress_callback)
 
-        self.plot_training_results(filename=name, show=self.training_config.get("show", False))
+        aa_name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
+        aa_path = os.path.abspath(aa_name)
+        abstract_action.save(aa_path)
 
-        return abstract_action
+        return aa_path
 
     def train_adp_model_with_deep_learning(self, regional_policies=None):
         regions = self.regions

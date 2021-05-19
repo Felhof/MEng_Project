@@ -12,7 +12,7 @@ from resources.plotter import LearningCurvePlotter
 
 class ResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, training_steps=400000, log_dir="/tmp/gym", training_config=None, algorithm="A2C"):
+    def __init__(self, rap, training_steps=200000, log_dir="/tmp/gym", training_config=None, algorithm="A2C"):
         super(ResourceManager, self).__init__(rap, log_dir=log_dir, algorithm=algorithm)
 
         self.model_name = rap["name"] + "_baseline"
@@ -35,7 +35,7 @@ class ResourceManager(BaseResourceManager):
             auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
             vector_environment = make_vec_env(lambda: self.environment, n_envs=1, monitor_dir=self.log_dir)
-            self.environment = vector_environment
+            #self.environment = vector_environment
             self.model = self.algorithm('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
 
             with ProgressBarManager(self.training_steps) as progress_callback:

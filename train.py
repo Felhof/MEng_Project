@@ -50,21 +50,20 @@ if __name__ == "__main__":
         "wide_decomposable": resources.test_problems.wide_decomposable_problem2,
         "wide_decomposable_alt": resources.test_problems.wide_decomposable_problem2_alt,
         "adp_problem": resources.test_problems.adp_problem,
-        "adp_problem2": resources.test_problems.adp_problem2,
-        "adp_problem_big": resources.test_problems.adp_problem_big,
-        "adp_problem_massive": resources.test_problems.adp_problem_massive,
-        "adp_problem_climb": resources.test_problems.adp_problem_climb,
-        "adp_problem_massive2": resources.test_problems.adp_problem_massive2,
-        "adp_problem_very_big": resources.test_problems.adp_problem_very_big,
+        "unequal_depth_unfair_ratio_6": resources.test_problems.unequal_depth_unfair_ratio_6,
+        "equal_depth_6": resources.test_problems.equal_depth_6,
         "adp_problem_insane": resources.test_problems.adp_problem_insane,
-        "adp_problem_insane2": resources.test_problems.adp_problem_insane2
+        "slow_departure_frequent_arrival_unfair_rewards_7": resources.test_problems.slow_departure_frequent_arrival_unfair_rewards_7,
+        "slow_departure_frequent_arrival_unfair_rewards_8": resources.test_problems.slow_departure_frequent_arrival_unfair_rewards_8,
+        "slow_departure_frequent_arrival_unfair_rewards_6": resources.test_problems.slow_departure_frequent_arrival_unfair_rewards_6,
+        "slow_departure_frequent_arrival_unfair_rewards_5": resources.test_problems.slow_departure_frequent_arrival_unfair_rewards_5
     }
 
     problem = test_problems[args.problem]
 
     training_config = {
-        "stage1_training_steps": 100,
-        "stage2_training_steps": 100,
+        "stage1_training_steps": 50000,
+        "stage2_training_steps": 50000,
         "steps_per_episode": 100,
         "training_iterations": 10,
         "search_hyperparameters": args.hpsearch,

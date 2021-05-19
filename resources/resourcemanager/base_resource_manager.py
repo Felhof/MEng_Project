@@ -120,13 +120,13 @@ class BaseResourceManager:
             log.append("Sate: " + str(obs))
             log.append("Action: " + str(action))
             obs, reward, done, info = self.environment.step(action)
-            if "lower level action" in info[0]:
-                log.append("lower level action: " + str(info[0]["lower level action"]))
+            if "lower level action" in info:
+                log.append("lower level action: " + str(info["lower level action"]))
             total_reward += reward
             log.append('reward: ' + str(reward))
             log.append('done: ' + str(done))
-            if "lower level state" in info[0]:
-                log.append("lower level state:" + str(info[0]["lower level state"]))
+            if "lower level state" in info:
+                log.append("lower level state:" + str(info["lower level state"]))
             if done:
                 # Note that the VecEnv resets automatically
                 # when a done signal is encountered
@@ -144,4 +144,4 @@ class BaseResourceManager:
             with open(filename, 'w') as file:
                 file.write(text)
 
-        return total_reward[0]
+        return total_reward
