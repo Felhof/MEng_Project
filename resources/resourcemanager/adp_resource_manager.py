@@ -1,9 +1,10 @@
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
 import multiprocessing as mp
 import os
+import psutil
 
 import numpy as np
-from stable_baselines3.common.cmd_util import make_vec_env
+from stable_baselines3.common.monitor import Monitor
 import matplotlib.pyplot as plt
 import itertools
 
@@ -99,19 +100,27 @@ class ADPResourceManager(BaseResourceManager):
         return valid_values
 
     def train_model(self):
-        num_workers = mp.cpu_count() - 2
-        pool = mp.Pool(num_workers)
-        abstract_action_results = {}
-        regional_policies = {id: {} for id in enumerate(self.regions)}
-        for region_id, region in enumerate(self.regions):
-            regional_policies[region_id] = {key: value for key, value in self.direction_to_action.items()}
-            abstract_action_results[region_id] = pool.apply_async(self.train_abstract_action, (),
-                                                                  {"target_region": region, "region_id": region_id})
+        load = self.training_config["load"]
+        regional_policies = {id: {} for id, _ in enumerate(self.regions)}
+        if not load:
+            num_workers = mp.cpu_count() - 2
+            pool = mp.Pool(num_workers)
+            abstract_action_results = {}
+            for region_id, region in enumerate(self.regions):
+                regional_policies[region_id] = {key: value for key, value in self.direction_to_action.items()}
+                abstract_action_results[region_id] = pool.apply_async(self.train_abstract_action, (),
+                                                                      {"target_region": region, "region_id": region_id})
 
-        pool.close()
+            pool.close()
 
-        actions_with_region_ids = [(key, aa_result.get()) for key, aa_result in abstract_action_results.items()]
-        for region_id, aa_path in actions_with_region_ids:
+            region_ids_and_paths = [(key, aa_result.get()) for key, aa_result in abstract_action_results.items()]
+        else:
+            region_ids_and_paths = []
+            for region_id in regional_policies.keys():
+                regional_policies[region_id] = {key: value for key, value in self.direction_to_action.items()}
+                region_ids_and_paths.append((region_id, self.get_model_path(region_id)))
+
+        for region_id, aa_path in region_ids_and_paths:
             abstract_action = self.algorithm.load(aa_path)
             self.model = abstract_action
             self.environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
@@ -119,13 +128,14 @@ class ADPResourceManager(BaseResourceManager):
             super(ADPResourceManager, self).run_model(save=True, name=name)
             regional_policies[region_id]["Stay"] = abstract_action
 
-        self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
-                                              show=self.training_config.get("show", False))
+        #self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
+        #                                      show=self.training_config.get("show", False))
+
+        self.train_adp_model_with_deep_learning(regional_policies=regional_policies)
 
     def train_abstract_action(self, target_region=None, region_id=0):
         environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
-        vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
-        abstract_action = self.algorithm('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
+        abstract_action = self.algorithm('MlpPolicy', environment, verbose=1, tensorboard_log=self.log_dir)
 
         training_steps = self.training_config["stage1_training_steps"]
         with ProgressBarManager(training_steps) as progress_callback:
@@ -138,16 +148,20 @@ class ADPResourceManager(BaseResourceManager):
 
         return aa_path
 
+    def get_model_path(self, region_id):
+        aa_name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
+        aa_path = os.path.abspath(aa_name)
+        return aa_path
+
     def train_adp_model_with_deep_learning(self, regional_policies=None):
         regions = self.regions
         environment = ADPResourceAllocationEnvironment(self.ra_problem, regions, regional_policies,
                                                        abstract_action_to_direction=self.abstract_action_to_direction,
                                                        n_locked_tasks=self.n_locked_tasks,
                                                        n_abstract_actions=self.n_abstract_actions)
-
-        vector_environment = make_vec_env(lambda: environment, n_envs=1, monitor_dir=self.log_dir)
-        self.environment = vector_environment
-        adp_model = self.algorithm('MlpPolicy', vector_environment, verbose=1, tensorboard_log=self.log_dir)
+        environment = Monitor(environment, self.log_dir)
+        self.environment = environment
+        adp_model = self.algorithm('MlpPolicy', environment, verbose=1, tensorboard_log=self.log_dir)
 
         training_steps = self.training_config["stage2_training_steps"]
         with ProgressBarManager(training_steps) as progress_callback:
@@ -156,7 +170,7 @@ class ADPResourceManager(BaseResourceManager):
         name = self.model_name + "_full_model"
         self.plot_training_results(filename=name, show=self.training_config.get("show", False))
 
-        return adp_model
+        self.model = adp_model
 
     def train_adp_model_with_monte_carlo(self, regional_policies=None, show=False):
         self.environment = ADPResourceAllocationEnvironment(self.ra_problem, self.regions, regional_policies,
@@ -273,6 +287,7 @@ class ADPResourceManager(BaseResourceManager):
         next_action_probablities = [policy[(state, a)] for a in self.actions]
         return np.random.choice(self.actions, p=next_action_probablities)
 
+"""
     def run_model(self, n_steps=250, save=False, name="", file_location="data"):
         log = []
         state = tuple(self.environment.reset())
@@ -300,7 +315,7 @@ class ADPResourceManager(BaseResourceManager):
             file.write(text)
 
         return total_reward
-
+"""
 
 class AbstractActionSpecification:
 
