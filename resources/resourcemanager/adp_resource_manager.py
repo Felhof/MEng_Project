@@ -1,10 +1,11 @@
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
 import multiprocessing as mp
 import os
-import psutil
+import time
 
 import numpy as np
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import EveryNTimesteps
 import matplotlib.pyplot as plt
 import itertools
 
@@ -12,7 +13,7 @@ from resources.callbacks import ProgressBarManager
 from resources.environments.rap_environment import RegionalResourceAllocationEnvironment
 from resources.environments.adp_environment import ADPResourceAllocationEnvironment
 from resources.environments.rap_environment import Region, TaskCondition
-
+from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
 
 def binary_sequences(n):
     assert n >= 1
@@ -29,8 +30,9 @@ def binary_sequences(n):
 
 class ADPResourceManager(BaseResourceManager):
 
-    def __init__(self, rap, log_dir="/tmp/gym", training_config=None, algorithm="A2C"):
-        super(ADPResourceManager, self).__init__(rap, log_dir=log_dir, algorithm=algorithm)
+    def __init__(self, rap, log_dir="/tmp/gym", training_config=None, algorithm="A2C", checkpoint_results=None):
+        super(ADPResourceManager, self).__init__(rap, log_dir=log_dir, algorithm=algorithm,
+                                                 checkpoint_results=checkpoint_results)
 
         self.save_dir = "/tmp/gym/"
 
@@ -100,6 +102,7 @@ class ADPResourceManager(BaseResourceManager):
         return valid_values
 
     def train_model(self):
+        setup_start = time.time()
         load = self.training_config["load"]
         regional_policies = {id: {} for id, _ in enumerate(self.regions)}
         if not load:
@@ -131,7 +134,7 @@ class ADPResourceManager(BaseResourceManager):
         #self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
         #                                      show=self.training_config.get("show", False))
 
-        self.train_adp_model_with_deep_learning(regional_policies=regional_policies)
+        self.train_adp_model_with_deep_learning(regional_policies=regional_policies, setup_start=setup_start)
 
     def train_abstract_action(self, target_region=None, region_id=0):
         environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
@@ -153,7 +156,7 @@ class ADPResourceManager(BaseResourceManager):
         aa_path = os.path.abspath(aa_name)
         return aa_path
 
-    def train_adp_model_with_deep_learning(self, regional_policies=None):
+    def train_adp_model_with_deep_learning(self, regional_policies=None, setup_start=0.):
         regions = self.regions
         environment = ADPResourceAllocationEnvironment(self.ra_problem, regions, regional_policies,
                                                        abstract_action_to_direction=self.abstract_action_to_direction,
@@ -162,15 +165,24 @@ class ADPResourceManager(BaseResourceManager):
         environment = Monitor(environment, self.log_dir)
         self.environment = environment
         adp_model = self.algorithm('MlpPolicy', environment, verbose=1, tensorboard_log=self.log_dir)
+        self.model = adp_model
+
+        auto_save_callback = SaveOnBestTrainingRewardCallback(log_dir=self.log_dir)
+        auto_save_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=auto_save_callback)
+
+        name = self.model_name + "_full_model_multi"
+        setup_time = time.time() - setup_start
+        checkpoint_callback = SavePerformanceOnCheckpoints(stage1_time=setup_time, resource_manager=self, name=name,
+                                                           checkpoint_results=self.checkpoint_results)
+        checkpoint_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=checkpoint_callback)
 
         training_steps = self.training_config["stage2_training_steps"]
         with ProgressBarManager(training_steps) as progress_callback:
-            adp_model.learn(total_timesteps=training_steps, callback=progress_callback)
+            adp_model.learn(total_timesteps=training_steps, callback=[progress_callback,
+                                                                      auto_save_callback_every_1000_steps,
+                                                                      checkpoint_callback_every_1000_steps])
 
-        name = self.model_name + "_full_model"
         self.plot_training_results(filename=name, show=self.training_config.get("show", False))
-
-        self.model = adp_model
 
     def train_adp_model_with_monte_carlo(self, regional_policies=None, show=False):
         self.environment = ADPResourceAllocationEnvironment(self.ra_problem, self.regions, regional_policies,

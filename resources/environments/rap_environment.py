@@ -69,7 +69,9 @@ class ResourceAllocationEnvironmentBase(gym.Env):
         if mode != 'console':
             raise NotImplementedError()
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
+        if deterministic:
+            np.random.seed(seed)
         self.current_timestep = 0
 
     def step(self, action):
@@ -116,12 +118,12 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
     def new_tasks(self):
         return np.random.binomial(1, self.ra_problem.get_task_arrival_p())
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(ResourceAllocationEnvironment, self).reset()
+        super(ResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
         self.current_resource_availabilities = self.max_resource_availabilities
         self.tasks_in_processing = np.zeros(self.ra_problem.get_task_count()).astype(int)
         self.tasks_waiting = self.new_tasks()
@@ -191,12 +193,12 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
         cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
         self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - cost_of_restricted_tasks
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(RestrictedResourceAllocationEnvironment, self).reset()
+        super(RestrictedResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
         self.tasks_in_processing[self.restricted_tasks] = [np.random.choice(r) for r in self.amount_of_locked_tasks]
         self.update_current_state()
 
@@ -258,12 +260,12 @@ class TargetedResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
         self.in_hull = False
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(TargetedResourceAllocationEnvironment, self).reset()
+        super(TargetedResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
         self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
         cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
         cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
@@ -354,12 +356,12 @@ class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
         return finished_tasks
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(RegionalResourceAllocationEnvironment, self).reset()
+        super(RegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
         self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
         cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
         cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
@@ -417,7 +419,7 @@ class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
         super(MDPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
         self.rap_mdp = MDPBuilder(ra_problem).build_mdp()
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         super(MDPResourceAllocationEnvironment, self).reset()
         initial_state = self.rap_mdp.reset()
         initial_state = self.flatten_observation(initial_state)
@@ -439,7 +441,7 @@ class RestrictedMDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBa
         super(RestrictedMDPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
         self.rmdp = restricetd_mdp
 
-    def reset(self):
+    def reset(self, deterministic=False, seed=0):
         super(RestrictedMDPResourceAllocationEnvironment, self).reset()
         initial_state = self.rmdp.reset()
         initial_state = self.flatten_observation(initial_state)

@@ -16,7 +16,7 @@ algorithms = {
 
 class BaseResourceManager:
 
-    def __init__(self, rap, log_dir="/tmp/gym", algorithm="A2C"):
+    def __init__(self, rap, log_dir="/tmp/gym", algorithm="A2C", checkpoint_results=None):
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
@@ -34,6 +34,8 @@ class BaseResourceManager:
 
         self.ra_problem = ResourceAllocationProblem(rewards, resource_requirements, max_resource_availabilities,
                                                     task_arrival_p, task_departure_p)
+
+        self.checkpoint_results = checkpoint_results
 
     def plot_training_results(self, title="Learning Curve", xlabel="episode", ylabel="cumulative reward",
                               filename="reward", log_dir=None, show=False):
@@ -111,12 +113,17 @@ class BaseResourceManager:
         for item in policy.items():
             print("{0} : {1}".format(item[0], list(item[1])))
 
-    def run_model(self, n_steps=250, save=False, name="", file_location="data"):
+    def run_model(self, n_steps=250, save=False, name="", file_location="data", model_path=None):
+        if model_path is not None:
+            model = self.algorithm.load(model_path)
+        else:
+            model = self.model
         log = []
-        obs = self.environment.reset()
+        seeds = list(range(1, n_steps + 1))
+        obs = self.environment.reset(deterministic=True, seed=0)
         total_reward = 0
         for step in range(n_steps):
-            action, _ = self.model.predict(obs, deterministic=True)
+            action, _ = model.predict(obs, deterministic=True)
             log.append("Sate: " + str(obs))
             log.append("Action: " + str(action))
             obs, reward, done, info = self.environment.step(action)
@@ -131,7 +138,7 @@ class BaseResourceManager:
                 # Note that the VecEnv resets automatically
                 # when a done signal is encountered
                 log.append("Goal reached! Reward= " + str(reward))
-                obs = self.environment.reset()
+                obs = self.environment.reset(deterministic=True, seed=seeds.pop(0))
 
         log.append("Total reward: " + str(total_reward))
 
