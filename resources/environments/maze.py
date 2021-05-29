@@ -29,15 +29,17 @@ class Maze:
         self.observation_space = spaces.Box(low=0., high=self.size, shape=(2, ), dtype=np.float32)
         self.action_space = spaces.Discrete(self.DIRECTIONS)
 
-        self.rooms = []
-        config["rooms"].sort(key=lambda r: r["lvl"])
+        self.rooms = {}
         for room_config in config["rooms"]:
             room_walls = []
             for wall in config["walls"]:
                 if room_config["area"].overlaps_rectangle(wall):
                     room_walls.append(wall)
-            room = Room(room_config["area"], room_config["entrypoints"], room_walls, room_config["policy color"])
-            self.rooms.append(room)
+            room = Room(room_config["area"], room_config["entrypoints"], room_walls, room_config["policy color"],
+                        room_config["training steps"])
+            rooms = self.rooms.get(room_config["lvl"], [])
+            rooms.append(room)
+            self.rooms[room_config["lvl"]] = rooms
 
     def step(self, action):
         next_position = self.move(action)
@@ -168,7 +170,7 @@ class MazeModel:
 
 class Room:
 
-    def __init__(self, area, entrypoints, walls, color):
+    def __init__(self, area, entrypoints, walls, color, training_steps):
         self.area = area
         self.entrypoints = entrypoints
         self.walls = walls
@@ -177,6 +179,7 @@ class Room:
             "blue": BLUE,
             "pink": PINK
             }[color]
+        self.training_steps = training_steps
 
     def inside(self, position, radius=0):
         for wall in self.walls:

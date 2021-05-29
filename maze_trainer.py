@@ -4,20 +4,20 @@ from resources.sac_agent import SACAgent
 
 import numpy as np
 
+import multiprocessing as mp
 import time
 import matplotlib.pyplot as plt
 
 
-def main(config, iterations=1):
+def main(config, iterations=3):
     maze = Maze(config)
     maze_models = []
 
-    training_steps = config["training_steps"]
     iteration_rewards = []
     times_goal_reached = 0
 
     for _ in range(iterations):
-        maze_model = train_maze_model(maze, training_steps, config["name"])
+        maze_model = train_maze_model(maze, config["name"])
         iteration_reward = 0
         reached_goal = False
         obs = maze.reset()
@@ -46,32 +46,50 @@ def main(config, iterations=1):
     print("{0} reached goal {1} times".format(config["name"], times_goal_reached))
 
 
-def train_maze_model(maze, training_steps, name, show=False):
+def train_maze_model(maze, name, show=False):
+    num_workers = mp.cpu_count() - 2
+
     room_models = []
 
-    for idx, (room, steps) in enumerate(zip(maze.rooms, training_steps)):
-        title = "{0}_Room_Model_Lvl_{1}".format(name, idx)
-        room_model, environment = train_room_model(maze=maze, room=room, lower_lvls=room_models, training_steps=steps, title=title)
-        room_models.append((room, room_model))
+    lvl = 0
 
-        state = environment.reset()
-        if show:
-            for _ in range(100):
-                action = room_model.predict(state)
-                next_state, reward, done, info = environment.step(action)
-                if done:
-                    state = environment.reset()
-                else:
-                    state = next_state
-                environment.render(show_policy=True, model=room_model)
-                time.sleep(0.01)
+    while lvl in maze.rooms:
+        pool = mp.Pool(num_workers)
+        rooms = maze.rooms[lvl]
+        room_model_results = []
+        for idx, room in enumerate(rooms):
+            title = "{0}_Room_Model_Lvl_{1}_Room_{2}".format(name, lvl, idx)
+            room_model_results.append((room, pool.apply_async(train_room_model, (),
+                                                              {"maze": maze,
+                                                               "room": room,
+                                                               "lower_lvls": room_models,
+                                                               "title": title})))
+
+        for room_model_result in room_model_results:
+            room = room_model_result[0]
+            room_model, environment = room_model_result[1].get()
+            room_models.append((room, room_model))
+
+            if show:
+                state = environment.reset()
+                for _ in range(100):
+                    action = room_model.predict(state)
+                    next_state, reward, done, info = environment.step(action)
+                    if done:
+                        state = environment.reset()
+                    else:
+                        state = next_state
+                    environment.render(show_policy=True, model=room_model)
+                    time.sleep(0.01)
+
+        lvl += 1
 
     maze_model = MazeModel(room_models)
 
     return maze_model
 
 
-def train_room_model(maze=None, room=None, lower_lvls=None, training_steps=10000, title="Room_Model", display_on=False, plot=False):
+def train_room_model(maze=None, room=None, lower_lvls=None, title="Room_Model", display_on=False, plot=False):
 
     environment = RoomEnvironment(maze=maze, room=room, lower_levels=lower_lvls)
 
@@ -81,6 +99,8 @@ def train_room_model(maze=None, room=None, lower_lvls=None, training_steps=10000
 
     reward_per_episode = []
     episode_reward = 0
+
+    training_steps = room.training_steps
 
     for n in range(training_steps):
         print("Episode {0}/{1}".format(n + 1, training_steps), end='\r')
@@ -196,7 +216,6 @@ two_rooms_one_area_maze_config = {
 
 four_rooms_four_areas_maze_config = {
     "name": "4-rooms-4-areas",
-    "training_steps": [20000, 20000, 20000, 20000],
     "size": 2,
     "start": Point(0.15, 0.15),
     "goal": Point(1.8, 1.8),
@@ -207,28 +226,32 @@ four_rooms_four_areas_maze_config = {
             "area": Area([Rectangle(Point(1.0, 0.9), Point(2., 2.))]),
             "entrypoints": [Point(1.55, 0.95), Point(1.65, 0.95),
                             Point(1.05, 1.45), Point(1.05, 1.55)],
-            "policy color": "red"
+            "policy color": "red",
+            "training steps": 1000
         },
         {
             # top left
             "lvl": 1,
             "area": Area([Rectangle(Point(0.0, 0.9), Point(1.0, 2.0))]),
             "entrypoints": [Point(0.35, 0.95), Point(0.45, 0.95)],
-            "policy color": "blue"
+            "policy color": "blue",
+            "training steps": 1000
         },
         {
             # bottom right
-            "lvl": 2,
+            "lvl": 1,
             "area": Area([Rectangle(Point(1.0, 0.0), Point(2.0, 0.9))]),
             "entrypoints": [Point(1.05, 0.35), Point(1.05, 0.35)],
-            "policy color": "blue"
+            "policy color": "blue",
+            "training steps": 1000
         },
         {
             # bottom left
-            "lvl": 3,
+            "lvl": 2,
             "area": Area([Rectangle(Point(0., 0.), Point(1.0, 0.9))]),
             "entrypoints": [Point(0.15, 0.15)],
-            "policy color": "pink"
+            "policy color": "pink",
+            "training steps": 1000
         }
     ],
     "walls": [Rectangle(Point(0.0, 0.9), Point(0.3, 1.0)), Rectangle(Point(0.5, 0.9), Point(1.5, 1.0)),
@@ -304,5 +327,4 @@ two_paths_maze_config = {
 
 
 if __name__ == "__main__":
-    main(two_paths_maze_config)
-    #main(four_rooms_four_areas_maze_config)
+    main(four_rooms_four_areas_maze_config)
