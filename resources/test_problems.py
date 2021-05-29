@@ -188,25 +188,21 @@ split_on_worst_6 = {
 
 split_on_best_7 = {
     "name": "split_on_best_7",
-    "rewards": np.array([3, 4, 3, 4, 5, 6, 5]),
-    "resource_requirements": np.array([[2, 1, 0], [2, 2, 0], [1, 0, 2], [0, 2, 2], [2, 3, 0], [2, 2, 2], [0, 2, 3]]),
+    "rewards": np.array([3, 4, 3, 4, 5, 5, 6]),
+    "resource_requirements": np.array([[2, 1, 0], [2, 2, 0], [1, 0, 2], [0, 2, 2], [2, 3, 0], [0, 2, 3], [2, 2, 2]]),
     "max_resource_availabilities": np.array([20, 20, 20]),
     "task_arrival_p": np.array([0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]),
     "task_departure_p": np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]),
-    "locked_tasks": [5, 6],
-    "n_abstract_actions": 4,
-    "n_locked_tasks": 2,
+    "locked_tasks": [6],
+    "n_abstract_actions": 3,
+    "n_locked_tasks": 1,
     "abstract_action_to_direction": {
         0: "Stay",
-        1: "Up_1",
-        2: "Up_2",
-        3: "Up_both",
-        4: "Down"
+        1: "Up",
+        2: "Down"
     },
     "direction_to_action": {
-        "Up_1": np.array([0, 0, 0, 0, 0, 0, 1]),
-        "Up_2": np.array([0, 0, 0, 0, 0, 1, 0]),
-        "Up_both": np.array([0, 0, 0, 0, 0, 1, 1]),
+        "Up": np.array([0, 0, 0, 0, 0, 0, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0])
     }
 }
@@ -269,10 +265,52 @@ many_tasks = {
     "max_resource_availabilities": np.array([8, 8, 8]),
     "task_arrival_p": np.array([0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]),
     "task_departure_p": np.array([0.3, 0.15, 0.2, 0.25, 0.2, 0.3, 0.25, 0.2, 0.15]),
-    "locked_tasks": [5, 6, 7, 8],
-    "n_abstract_actions": 17,
-    "n_locked_tasks": 4,
+    "locked_tasks": [7, 8],
+    "n_abstract_actions": 5,
+    "n_locked_tasks": 2,
     "abstract_action_to_direction": {
+        0: "Stay",
+        1: "Up_7",
+        2: "Up_8",
+        3: "Up_78",
+        4: "Down"
+    },
+    "direction_to_action": {
+        "Up_7": np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
+        "Up_8": np.array([0, 0, 0, 0, 0, 0, 0, 0, 1]),
+        "Up_78": np.array([0, 0, 0, 0, 0, 0, 0, 1, 1]),
+        "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    }
+}
+
+many_tasks_small = {
+    "name": "many_tasks_small",
+    "rewards": np.array([3, 6, 5, 4, 5, 3, 4]),
+    "resource_requirements": np.array([[2, 2, 0], [2, 2, 0], [1, 2, 1], [1, 1, 2], [2, 1, 1], [0, 1, 2], [2, 0, 2]]),
+    "max_resource_availabilities": np.array([8, 8, 8]),
+    "task_arrival_p": np.array([0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]),
+    "task_departure_p": np.array([0.3, 0.15, 0.2, 0.25, 0.2, 0.3, 0.25]),
+    "locked_tasks": [7, 8],
+    "n_abstract_actions": 5,
+    "n_locked_tasks": 2,
+    "abstract_action_to_direction": {
+        0: "Stay",
+        1: "Up_7",
+        2: "Up_8",
+        3: "Up_78",
+        4: "Down"
+    },
+    "direction_to_action": {
+        "Up_7": np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
+        "Up_8": np.array([0, 0, 0, 0, 0, 0, 0, 0, 1]),
+        "Up_78": np.array([0, 0, 0, 0, 0, 0, 0, 1, 1]),
+        "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    }
+}
+
+
+"""
+"abstract_action_to_direction": {
         0: "Stay",
         1: "Up_5",
         2: "Up_6",
@@ -309,8 +347,6 @@ many_tasks = {
         "Up5678": np.array([0, 0, 0, 0, 0, 1, 1, 1, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
     }
-}
-
-
+"""
 
 

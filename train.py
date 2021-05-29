@@ -61,6 +61,7 @@ if __name__ == "__main__":
         "unequal_rewards_varied_departure_p_6": resources.test_problems.unequal_rewards_varied_departure_p_6,
         "unequal_rewards_varied_departure_p_7": resources.test_problems.unequal_rewards_varied_departure_p_7,
         "many_tasks": resources.test_problems.many_tasks,
+        "many_tasks_small": resources.test_problems.many_tasks_small,
     }
 
     problem = test_problems[args.problem]
