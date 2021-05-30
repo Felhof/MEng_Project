@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import itertools
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import RegionalResourceAllocationEnvironment
+from resources.environments.rap_environment import DeanLinRegionalResourceAllocationEnvironment
 from resources.environments.adp_environment import ADPResourceAllocationEnvironment
 from resources.environments.rap_environment import Region, TaskCondition
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
@@ -126,7 +126,7 @@ class ADPResourceManager(BaseResourceManager):
         for region_id, aa_path in region_ids_and_paths:
             abstract_action = self.algorithm.load(aa_path)
             self.model = abstract_action
-            self.environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
+            self.environment = DeanLinRegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
             name = aa_path.split('/')[-1]
             super(ADPResourceManager, self).run_model(save=True, name=name)
             regional_policies[region_id]["Stay"] = abstract_action
@@ -137,7 +137,7 @@ class ADPResourceManager(BaseResourceManager):
         self.train_adp_model_with_deep_learning(regional_policies=regional_policies, setup_start=setup_start)
 
     def train_abstract_action(self, target_region=None, region_id=0):
-        environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
+        environment = DeanLinRegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
         abstract_action = self.algorithm('MlpPolicy', environment, verbose=1, tensorboard_log=self.log_dir)
 
         training_steps = self.training_config["stage1_training_steps"]

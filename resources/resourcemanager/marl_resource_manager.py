@@ -10,7 +10,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import ResourceAllocationEnvironment, RestrictedResourceAllocationEnvironment
+from resources.environments.rap_environment import ResourceAllocationEnvironment, AbbadDaouiRegionalResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
 from resources.plotter import LearningCurvePlotter
 
@@ -60,13 +60,13 @@ class MultiAgentResourceManager(BaseResourceManager):
                 policy_kwargs = {}
                 name = self.model_name + "_stage1_lvl" + str(idx)
                 if self.training_config["search_hyperparameters"] and (stage1_hyperparams[idx] is None):
-                    stage1_hyperparams[idx] = self.search_hyperparams(RestrictedResourceAllocationEnvironment,
+                    stage1_hyperparams[idx] = self.search_hyperparams(AbbadDaouiRegionalResourceAllocationEnvironment,
                                                                       environment_kwargs,
                                                                       policy_kwargs,
                                                                       training_steps=self.training_config[
                                                                           "stage1_training_steps"])
 
-                model = self.train_submodel(RestrictedResourceAllocationEnvironment,
+                model = self.train_submodel(AbbadDaouiRegionalResourceAllocationEnvironment,
                                             environment_kwargs,
                                             policy_kwargs,
                                             name=name,
