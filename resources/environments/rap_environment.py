@@ -301,56 +301,6 @@ class DeanLinRegionalResourceAllocationEnvironment(RegionalResourceAllocationEnv
         return observation, reward, done, info
 
 
-class Region:
-
-    def __init__(self, task_conditions):
-        self.task_conditions = task_conditions
-        self.id_to_conditions = {}
-        for task_condition in self.task_conditions:
-            task_id = self.task_conditions
-            conditions = self.id_to_conditions.get(task_id, [])
-            conditions.append(task_condition)
-            self.id_to_conditions[task_id] = conditions
-
-    def inside_region(self, task):
-        return all([task_condition.satisfied(task) for task_condition in self.task_conditions])
-
-    def distance_from_region(self, tasks):
-        distance_vector = np.asarray([task_condition.distance(tasks) for task_condition in self.task_conditions])
-        distance = np.linalg.norm(distance_vector)
-        return distance
-
-    def task_meets_all_conditions(self, n, task_id):
-        conditions = self.id_to_conditions[task_id]
-        for condition in conditions:
-            if not condition.check(n):
-                return False
-        return True
-
-
-class TaskCondition:
-
-    def __init__(self, task_id=0, min_value=0, max_value=1):
-        self.task_id = task_id
-        self.min_value = min_value
-        self.max_value = max_value
-
-    def satisfied(self, tasks):
-        return self.min_value <= tasks[self.task_id] <= self.max_value
-
-    def distance(self, tasks):
-        if self.min_value <= tasks[self.task_id] <= self.max_value:
-            d = 0
-        elif tasks[self.task_id] < self.min_value:
-            d = self.min_value - tasks[self.task_id]
-        else:
-            d = tasks[self.task_id] - self.max_value
-        return d
-
-    def check(self, n):
-        return self.min_value <= n <= self.max_value
-
-
 class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
     def __init__(self, ra_problem, max_timesteps=500):
         super(MDPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
