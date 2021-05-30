@@ -82,9 +82,6 @@ class ADPResourceManager(BaseResourceManager):
             super(ADPResourceManager, self).run_model(save=True, name=name)
             regional_policies[region_id]["Stay"] = abstract_action
 
-        #self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
-        #                                      show=self.training_config.get("show", False))
-
         self.train_adp_model_with_deep_learning(regional_policies=regional_policies, setup_start=setup_start)
 
     def train_abstract_action(self, target_region=None, region_id=0):

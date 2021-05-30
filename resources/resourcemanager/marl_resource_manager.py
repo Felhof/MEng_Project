@@ -3,7 +3,7 @@ from resources.resourcemanager.base_resource_manager import BaseResourceManager
 import os
 import itertools
 
-from stable_baselines3 import A2C
+from stable_baselines3 import PPO
 from stable_baselines3.common.cmd_util import make_vec_env
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -57,7 +57,7 @@ class MultiAgentResourceManager(BaseResourceManager):
                 }
 
                 policy_kwargs = {}
-                name = self.model_name + "_stage1_lvl" + str(idx)
+                submodel_name = self.model_name + "_stage1_lvl" + str(idx)
                 if self.training_config["search_hyperparameters"] and (stage1_hyperparams[idx] is None):
                     stage1_hyperparams[idx] = self.search_hyperparams(AbbadDaouiRegionalResourceAllocationEnvironment,
                                                                       environment_kwargs,
@@ -67,17 +67,20 @@ class MultiAgentResourceManager(BaseResourceManager):
 
                 regional_model_results.append((region,
                                                pool.apply_async(
-                                                   self.train_submodel,
+                                                   self.train_model_and_save_path,
                                                    (),
-                                                   {"environment_class": AbbadDaouiRegionalResourceAllocationEnvironment,
-                                                    "policy_kwargs": policy_kwargs,
-                                                    "name": name,
-                                                    "hyperparams": stage1_hyperparams[idx],
-                                                    "training_steps": self.training_config["stage1_training_steps"]}
+                                                   {"model_name": submodel_name,
+                                                    "training_kwargs": {
+                                                        "environment_class": AbbadDaouiRegionalResourceAllocationEnvironment,
+                                                        "policy_kwargs": policy_kwargs,
+                                                        "hyperparams": stage1_hyperparams[idx],
+                                                        "training_steps": self.training_config["stage1_training_steps"]}
+                                                    }
                                                )))
 
-            for region, model_result in regional_model_results:
-                model = model_result.get()
+            for region, model_path_result in regional_model_results:
+                model_path = model_path_result.get()
+                model = PPO.load(model_path)
                 stage1_models.append(model)
                 task_values_in_region = region.find_task_values_within_region()
                 for key in task_values_in_region:
@@ -87,7 +90,6 @@ class MultiAgentResourceManager(BaseResourceManager):
             "max_timesteps": self.training_config["steps_per_episode"]
         }
         policy_kwargs = {"stage1_models": stage1_models}
-        name = self.model_name + "_" + "stage2"
 
         if self.training_config["search_hyperparameters"] and (stage2_hyperparams is None):
             stage2_hyperparams = self.search_hyperparams(ResourceAllocationEnvironment,
@@ -101,7 +103,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                                                environment_kwargs,
                                                policy_kwargs,
                                                policy=MultiStageActorCritic,
-                                               name=name,
                                                hyperparams=stage2_hyperparams,
                                                training_steps=self.training_config["stage2_training_steps"])
 
@@ -203,7 +204,7 @@ class MultiAgentResourceManager(BaseResourceManager):
         return best_trial_config
 
     def train_submodel(self, environment_class=None, environment_kwargs=None, policy_kwargs=None,
-                       policy=None, name="", hyperparams=None, training_steps=20000):
+                       policy=None, hyperparams=None, training_steps=20000):
 
         if policy is None:
             policy = "MlpPolicy"
@@ -221,16 +222,18 @@ class MultiAgentResourceManager(BaseResourceManager):
         env = environment_class(self.ra_problem, **environment_kwargs)
         vector_env = make_vec_env(lambda: env, n_envs=1, monitor_dir=self.log_dir)
 
-        model = A2C(policy,
+        model = PPO(policy,
                     vector_env,
                     **config)
         with ProgressBarManager(training_steps) as progress_callback:
             model.learn(total_timesteps=training_steps, callback=progress_callback)
 
-        # print("Training Reward: ", evaluate_policy(model, vector_env, n_eval_episodes=100)[0])
-
         self.environment = vector_env
 
-        self.plot_training_results(filename=name)
-
         return model
+
+    def train_model_and_save_path(self, model_name="", training_kwargs=None):
+        model = self.train_submodel(**training_kwargs)
+        model_path = os.path.abspath(model_name)
+        model.save(model_path)
+        return model_path
