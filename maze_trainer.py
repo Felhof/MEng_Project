@@ -295,6 +295,43 @@ maze_with_local_maxmimum_4_areas = {
               Rectangle(Point(0.7, 1.3), Point(1.2, 1.4)), Rectangle(Point(1.4, 1.3), Point(2.0, 1.4))]
 }
 
+maze_with_local_maxmimum_3_areas = {
+    "name": "maze_with_local_maxmimum_3_areas",
+    "size": 2,
+    "start": Point(0.95, 1.65),
+    "goal": Point(1.5, 0.3),
+    "rooms": [
+        {
+            # top right
+            "lvl": 0,
+            "area": Area([Rectangle(Point(0.9, 0.0), Point(2., 0.7))]),
+            "entrypoints": [Point(0.95, 0.25), Point(0.95, 0.25)],
+            "policy color": "red",
+            "time": 10*SECONDS_PER_MINUTE/3
+        },
+        {
+            # top left
+            "lvl": 1,
+            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.9, 1.4))]),
+            "entrypoints": [Point(0.55, 1.35), Point(0.65, 1.35)],
+            "policy color": "blue",
+            "time": 10*SECONDS_PER_MINUTE/3
+        },
+        {
+            # bottom
+            "lvl": 2,
+            "area": Area([Rectangle(Point(0.0, 1.4), Point(2.0, 2.0)), Rectangle(Point(0.9, 0.7), Point(2.0, 1.4))]),
+            "entrypoints": [Point(0.95, 1.65)],
+            "policy color": "pink",
+            "time": 10*SECONDS_PER_MINUTE/3
+        }
+    ],
+    "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
+              Rectangle(Point(0.9, 0.6), Point(2.0, 0.7)), Rectangle(Point(0.0, 1.3), Point(0.5, 1.4)),
+              Rectangle(Point(0.7, 1.3), Point(1.2, 1.4)), Rectangle(Point(1.4, 1.3), Point(2.0, 1.4))]
+}
+
+
 
 
 if __name__ == "__main__":
