@@ -36,7 +36,7 @@ class Maze:
                 if room_config["area"].overlaps_rectangle(wall):
                     room_walls.append(wall)
             room = Room(room_config["area"], room_config["entrypoints"], room_walls, room_config["policy color"],
-                        room_config["training steps"])
+                        room_config["time"])
             rooms = self.rooms.get(room_config["lvl"], [])
             rooms.append(room)
             self.rooms[room_config["lvl"]] = rooms
@@ -170,7 +170,7 @@ class MazeModel:
 
 class Room:
 
-    def __init__(self, area, entrypoints, walls, color, training_steps):
+    def __init__(self, area, entrypoints, walls, color, training_time):
         self.area = area
         self.entrypoints = entrypoints
         self.walls = walls
@@ -179,7 +179,7 @@ class Room:
             "blue": BLUE,
             "pink": PINK
             }[color]
-        self.training_steps = training_steps
+        self.training_time = training_time
 
     def inside(self, position, radius=0):
         for wall in self.walls:
