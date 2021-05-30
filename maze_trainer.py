@@ -320,11 +320,11 @@ maze_with_local_maxmimum_3_areas = {
         {
             # bottom
             "lvl": 2,
-            "area": Area([Rectangle(Point(0.0, 1.4), Point(2.0, 2.0)), Rectangle(Point(0.9, 0.7), Point(2.0, 1.4))]),
+            "area": Area([Rectangle(Point(0.9, 0.7), Point(2.0, 1.4)), Rectangle(Point(0.0, 1.4), Point(2.0, 2.0))]),
             "entrypoints": [Point(0.95, 1.65)],
-            "policy color": "pink",
+            "policy color": "blue",
             "time": 10*SECONDS_PER_MINUTE/3
-        }
+        },
     ],
     "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
               Rectangle(Point(0.9, 0.6), Point(2.0, 0.7)), Rectangle(Point(0.0, 1.3), Point(0.5, 1.4)),
@@ -332,7 +332,5 @@ maze_with_local_maxmimum_3_areas = {
 }
 
 
-
-
 if __name__ == "__main__":
-    main(maze_with_local_maxmimum_4_areas)
+    main(maze_with_local_maxmimum_3_areas)
