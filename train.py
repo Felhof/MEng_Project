@@ -4,11 +4,12 @@ import time
 
 from resources.resourcemanager.resource_manager import ResourceManager
 from resources.resourcemanager.adp_resource_manager import ADPResourceManager
+from resources.resourcemanager.marl_resource_manager import MultiAgentResourceManager
 import resources.test_problems
 from resources.reward_checkpoints import CheckpointResults
 
 def main(resource_manager, resource_problem_dict, training_config, algorithm="A2C", problem_name="_multi",
-         iterations=9):
+         iterations=5):
     model_name = resource_problem_dict["name"] + problem_name + "_" + algorithm
     checkpoint_results = CheckpointResults(model_name=model_name)
 
@@ -45,6 +46,8 @@ if __name__ == "__main__":
                         help="how often to run the experiment")
     parser.add_argument('--l', action='store_true',
                         help='load stage 1 models from previous training run')
+    parser.add_argument('--ad', action="store_true",
+                        help='use Abbad-Daoui decomposition')
 
     args = parser.parse_args()
 
@@ -72,7 +75,7 @@ if __name__ == "__main__":
     training_config = {
         "stage1_training_steps": stage1steps,
         "stage2_training_steps": stage2steps,
-        "steps_per_episode": 100,
+        "steps_per_episode": 500,
         "training_iterations": 10,
         "search_hyperparameters": args.hpsearch,
         "hpsearch_iterations": 10,
@@ -80,10 +83,13 @@ if __name__ == "__main__":
         "load": args.l
     }
 
-    name = "_multi"
+    name = "_dl"
     if args.baseline:
         resource_manager = ResourceManager
         name = "_baseline"
+    elif args.ad:
+        resource_manager = MultiAgentResourceManager
+        name = "ad"
     else:
         resource_manager = ADPResourceManager
 

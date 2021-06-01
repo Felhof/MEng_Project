@@ -1,7 +1,6 @@
 import numpy as np
 
-from resources.environments.rap_environment import Region, TaskCondition
-from resources.resourcemanager.adp_resource_manager import AbstractActionSpecification
+from resources.region import Region, TaskCondition
 
 # problem satisfying the uniform resource requirement
 urr_problem_dict = {
@@ -140,6 +139,13 @@ split_on_best_6 = {
     "direction_to_action": {
         "Up": np.array([0, 0, 0, 0, 0, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0])
+    },
+    "AD_Regions": {
+        0: [Region([TaskCondition(task_id=5, min_value=8, max_value=10)])],
+        1: [Region([TaskCondition(task_id=5, min_value=6, max_value=7)])],
+        2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
+        3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
+        4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
     }
 }
 
@@ -161,6 +167,13 @@ unequal_rewards_varied_departure_p_6 = {
     "direction_to_action": {
         "Up": np.array([0, 0, 0, 0, 0, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0])
+    },
+    "AD_Regions": {
+        0: [Region([TaskCondition(task_id=5, min_value=8, max_value=10)])],
+        1: [Region([TaskCondition(task_id=5, min_value=6, max_value=7)])],
+        2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
+        3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
+        4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
     }
 }
 
@@ -265,7 +278,7 @@ many_tasks = {
     "max_resource_availabilities": np.array([8, 8, 8]),
     "task_arrival_p": np.array([0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]),
     "task_departure_p": np.array([0.3, 0.15, 0.2, 0.25, 0.2, 0.3, 0.25, 0.2, 0.15]),
-    "locked_tasks": [7, 8],
+    "locked_tasks": [5, 6],
     "n_abstract_actions": 5,
     "n_locked_tasks": 2,
     "abstract_action_to_direction": {
@@ -280,6 +293,24 @@ many_tasks = {
         "Up_8": np.array([0, 0, 0, 0, 0, 0, 0, 0, 1]),
         "Up_78": np.array([0, 0, 0, 0, 0, 0, 0, 1, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    },
+    "AD_Regions": {
+        0: [Region([TaskCondition(task_id=5, min_value=4, max_value=4),
+                    TaskCondition(task_id=6, min_value=0, max_value=0)]),
+            Region([TaskCondition(task_id=5, min_value=0, max_value=0),
+                    TaskCondition(task_id=6, min_value=4, max_value=4)])],
+        1: [Region([TaskCondition(task_id=5, min_value=3, max_value=3),
+                    TaskCondition(task_id=6, min_value=0, max_value=1)]),
+            Region([TaskCondition(task_id=5, min_value=0, max_value=1),
+                    TaskCondition(task_id=6, min_value=3, max_value=3)])],
+        2: [Region([TaskCondition(task_id=5, min_value=2, max_value=2),
+                    TaskCondition(task_id=6, min_value=2, max_value=2)])],
+        3: [Region([TaskCondition(task_id=5, min_value=2, max_value=2),
+                    TaskCondition(task_id=6, min_value=0, max_value=1)]),
+            Region([TaskCondition(task_id=5, min_value=0, max_value=1),
+                    TaskCondition(task_id=6, min_value=2, max_value=2)])],
+        4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1),
+                    TaskCondition(task_id=6, min_value=0, max_value=1)])],
     }
 }
 

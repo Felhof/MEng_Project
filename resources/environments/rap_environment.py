@@ -96,8 +96,10 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
 
     # SETTERS ----------------------------------------------------------------------------------------------------------
     def set_current_resource_availabilities(self, resource_availabilities):
-        assert (resource_availabilities >= 0).all()
-        assert (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all()
+        assert (resource_availabilities >= 0).all(), "must have nonnegative resources"
+        if not (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all():
+            print(resource_availabilities)
+        assert (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all(), "resources must be within limit"
         self.current_resource_availabilities = resource_availabilities
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -203,23 +205,32 @@ class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
 class AbbadDaouiRegionalResourceAllocationEnvironment(RegionalResourceAllocationEnvironment):
 
     def __init__(self, ra_problem, region=None, lower_lvl_models=None, max_timesteps=500):
+        #print(2)
         super(AbbadDaouiRegionalResourceAllocationEnvironment, self).__init__(ra_problem, region=region,
                                                                               max_timesteps=max_timesteps)
         self.lower_lvl_models = lower_lvl_models
         self.in_hull = False
+        print(3)
 
     def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
+        #print("reset")
         super(AbbadDaouiRegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
+        cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
+        cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
+        self.set_current_resource_availabilities(
+            self.get_current_resource_availabilities() - cost_of_tasks
+        )
         self.update_current_state()
         self.in_hull = False
 
         return self.current_state
 
     def finished_tasks(self):
+        #print("finished task")
         departure_probabilities = self.ra_problem.get_task_departure_p()
         finished_tasks = np.random.binomial(self.tasks_in_processing, departure_probabilities)
 
@@ -233,7 +244,8 @@ class AbbadDaouiRegionalResourceAllocationEnvironment(RegionalResourceAllocation
         return finished_tasks
 
     def calculate_reward(self, allocations):
-        model_key = tuple(self.tasks_in_processing[self.restricted_tasks])
+        #print("rewards")
+        model_key = tuple(self.tasks_in_processing[self.restricted_task_ids])
         lower_lvl_model = self.lower_lvl_models.get(model_key, None)
         if lower_lvl_model is not None:
             self.in_hull = True
@@ -245,6 +257,7 @@ class AbbadDaouiRegionalResourceAllocationEnvironment(RegionalResourceAllocation
         return reward
 
     def step(self, action):
+        #print("steps")
         observation, reward, done, info = super(AbbadDaouiRegionalResourceAllocationEnvironment, self).step(action)
         done = done or self.in_hull
 

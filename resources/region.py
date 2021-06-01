@@ -9,7 +9,7 @@ class Region:
         self.task_conditions = task_conditions
         self.id_to_conditions = {}
         for task_condition in self.task_conditions:
-            task_id = self.task_conditions
+            task_id = task_condition.task_id
             conditions = self.id_to_conditions.get(task_id, [])
             conditions.append(task_condition)
             self.id_to_conditions[task_id] = conditions
