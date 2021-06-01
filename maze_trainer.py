@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 SECONDS_PER_MINUTE = 60
 
 
-def main(config, iterations=15):
+def main(config, iterations=3):
     maze = Maze(config)
     maze_models = []
 
@@ -324,6 +324,35 @@ maze_with_local_maxmimum_3_areas = {
             "entrypoints": [Point(0.95, 1.65)],
             "policy color": "blue",
             "time": 10*SECONDS_PER_MINUTE/3
+        },
+    ],
+    "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
+              Rectangle(Point(0.9, 0.6), Point(2.0, 0.7)), Rectangle(Point(0.0, 1.3), Point(0.5, 1.4)),
+              Rectangle(Point(0.7, 1.3), Point(1.2, 1.4)), Rectangle(Point(1.4, 1.3), Point(2.0, 1.4))]
+}
+
+maze_with_local_maxmimum_2_areas = {
+    "name": "maze_with_local_maxmimum_2_areas",
+    "size": 2,
+    "start": Point(0.55, 1.35),
+    "goal": Point(1.5, 0.3),
+    "rooms": [
+        {
+            # top right
+            "lvl": 0,
+            "area": Area([Rectangle(Point(0.9, 0.0), Point(2., 0.7))]),
+            "entrypoints": [Point(0.95, 0.25), Point(0.95, 0.25)],
+            "policy color": "red",
+            "time": SECONDS_PER_MINUTE
+        },
+        {
+            # rest
+            "lvl": 1,
+            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.9, 1.4)), Rectangle(Point(0.9, 0.7), Point(2.0, 1.4)),
+                          Rectangle(Point(0.0, 1.4), Point(2.0, 2.0))]),
+            "entrypoints": [Point(0.55, 1.35), Point(0.65, 1.35)],
+            "policy color": "blue",
+            "time": 3*SECONDS_PER_MINUTE
         },
     ],
     "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
