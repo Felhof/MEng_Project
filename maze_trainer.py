@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 SECONDS_PER_MINUTE = 60
 
 
-def main(config, iterations=3):
+def main(config, iterations=5):
     maze = Maze(config)
     maze_models = []
 

@@ -217,6 +217,13 @@ split_on_best_7 = {
     "direction_to_action": {
         "Up": np.array([0, 0, 0, 0, 0, 0, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0])
+    },
+    "AD_Regions": {
+        0: [Region([TaskCondition(task_id=6, min_value=8, max_value=10)])],
+        1: [Region([TaskCondition(task_id=6, min_value=6, max_value=7)])],
+        2: [Region([TaskCondition(task_id=6, min_value=4, max_value=5)])],
+        3: [Region([TaskCondition(task_id=6, min_value=2, max_value=3)])],
+        4: [Region([TaskCondition(task_id=6, min_value=0, max_value=1)])]
     }
 }
 
