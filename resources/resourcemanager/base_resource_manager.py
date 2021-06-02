@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+import csv
 
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 import numpy as np
@@ -55,6 +56,21 @@ class BaseResourceManager:
         plt.savefig("img/" + filename)
         if show:
             plt.show()
+
+    def save_episode_rewards_as_csv(self, data_directory="data/", log_dir=None):
+
+        if log_dir is None:
+            log_dir = self.log_dir
+
+        episode, rewards = ts2xy(load_results(log_dir), 'timesteps')
+
+        filename = self.model_name + "_episode_rewards"
+        location = data_directory + '{}.csv'.format(filename)
+
+        with open(location, mode='w') as results_file:
+            results_writer = csv.writer(results_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            results_writer.writerow(episode)
+            results_writer.writerow(rewards)
 
 
     def evaluate_model(self, n_episodes=10, episode_length=500, render=False):

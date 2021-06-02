@@ -211,7 +211,6 @@ class MultiAgentResourceManager(BaseResourceManager):
 
     def train_stage1_model(self, environment_kwargs=None, policy_kwargs=None, lower_lvl_model_paths=None,
                            hyperparams=None, training_steps=20000):
-        #print(1)
         config = {
             "verbose": 1,
             "tensorboard_log": self.log_dir,
@@ -238,7 +237,6 @@ class MultiAgentResourceManager(BaseResourceManager):
                     environment,
                     **config)
         with ProgressBarManager(training_steps) as progress_callback:
-            #print(4)
             model.learn(total_timesteps=training_steps, callback=progress_callback)
 
         self.environment = environment
@@ -277,6 +275,8 @@ class MultiAgentResourceManager(BaseResourceManager):
             model.learn(total_timesteps=training_steps, callback=callbacks)
 
         self.environment = environment
+
+        self.save_episode_rewards_as_csv()
 
         return model
 

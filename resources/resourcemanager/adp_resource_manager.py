@@ -130,6 +130,7 @@ class ADPResourceManager(BaseResourceManager):
                                                                       auto_save_callback_every_1000_steps,
                                                                       checkpoint_callback_every_1000_steps])
 
+        self.save_episode_rewards_as_csv()
         self.plot_training_results(filename=name, show=self.training_config.get("show", False))
 
     def train_adp_model_with_monte_carlo(self, regional_policies=None, show=False):

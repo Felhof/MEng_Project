@@ -89,7 +89,7 @@ if __name__ == "__main__":
         name = "_baseline"
     elif args.ad:
         resource_manager = MultiAgentResourceManager
-        name = "ad"
+        name = "_ad"
     else:
         resource_manager = ADPResourceManager
 
