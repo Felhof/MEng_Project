@@ -199,8 +199,8 @@ class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
     def reset(self, deterministic=False, seed=0):
         super(RegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
-        self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
-
+        #self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
+        self.tasks_in_processing[self.restricted_task_ids] = [min(r) for r in self.locked_task_ranges]
 
 class AbbadDaouiRegionalResourceAllocationEnvironment(RegionalResourceAllocationEnvironment):
 

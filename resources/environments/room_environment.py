@@ -31,7 +31,7 @@ class RoomEnvironment:
                     state_tensor = torch.tensor(next_position.to_numpy(), dtype=torch.float32).unsqueeze(0)
                     lower_level_q_values = lower_lvl_model.predict_q_values(state_tensor)
                     action_value = lower_level_q_values.squeeze(0)[action]
-                    reward = action_value * (1 - self.current_step / self.episode_length)
+                    reward = action_value  # * (1 - self.current_step / self.episode_length)
                     done = True
                     break
             if not done:
