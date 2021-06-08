@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import itertools
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import RegionalResourceAllocationEnvironment
+from resources.environments.rap_environment import DeanLinRegionalResourceAllocationEnvironment
 from resources.environments.adp_environment import ADPResourceAllocationEnvironment
-from resources.environments.rap_environment import Region, TaskCondition
+from resources.region import Region
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
 
 def binary_sequences(n):
@@ -36,7 +36,7 @@ class ADPResourceManager(BaseResourceManager):
 
         self.save_dir = "/tmp/gym/"
 
-        self.regions = self.create_regions(rap)
+        self.regions = Region.create_regions(rap)
         self.abstract_action_to_direction = rap["abstract_action_to_direction"]
         self.direction_to_action = rap["direction_to_action"]
         self.n_abstract_actions = len(self.abstract_action_to_direction)
@@ -51,55 +51,6 @@ class ADPResourceManager(BaseResourceManager):
         self.model_name = "Dean_Lin_{}".format(rap["name"])
         self.environment = None
         self.policy = None
-
-    def create_regions(self, rap):
-        fixed_ids = []
-        fixed_values = []
-        fluent_ids = rap["locked_tasks"]
-        resource_requirements = rap["resource_requirements"]
-        budget = rap["max_resource_availabilities"]
-        possible_task_values = self.find_possible_task_values(fixed_ids, fixed_values, fluent_ids,
-                                                              resource_requirements, budget)
-
-        regions = []
-        for values in possible_task_values:
-            task_conditions = []
-            for task_id, value in zip(rap["locked_tasks"], values):
-                task_condition = TaskCondition(task_id=task_id, min_value=int(value), max_value=int(value))
-                task_conditions.append(task_condition)
-            region = Region(task_conditions)
-            regions.append(region)
-        return regions
-
-    def find_possible_task_values(self, fixed_ids, fixed_values, fluent_ids, resource_requirements, budget):
-        assert len(fixed_ids) == len(fixed_values)
-        assert len(fluent_ids) > 0
-
-        valid_values = []
-        if len(fixed_ids) > 0:
-            fixed_cost = np.sum(resource_requirements[fixed_ids] * np.array([fixed_values]).T, axis=0)
-        else:
-            fixed_cost = np.array([0, 0, 0])
-        fluent_id = fluent_ids[0]
-        value = 0
-        within_budget = True
-        while within_budget:
-            final_costs = fixed_cost + resource_requirements[fluent_id]*value
-            if (final_costs > budget).any():
-                within_budget = False
-            elif len(fluent_ids) == 1:
-                values = np.append(fixed_values, value)
-                valid_values.append(values)
-            else:
-                new_fixed_ids = fixed_ids + [fluent_ids[0]]
-                new_fixed_values = fixed_values + [value]
-                new_fluent_ids = fluent_ids[1:]
-                values = self.find_possible_task_values(new_fixed_ids, new_fixed_values, new_fluent_ids,
-                                                        resource_requirements, budget)
-                valid_values += values
-            value += 1
-
-        return valid_values
 
     def train_model(self):
         setup_start = time.time()
@@ -126,18 +77,15 @@ class ADPResourceManager(BaseResourceManager):
         for region_id, aa_path in region_ids_and_paths:
             abstract_action = self.algorithm.load(aa_path)
             self.model = abstract_action
-            self.environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
+            self.environment = DeanLinRegionalResourceAllocationEnvironment(self.ra_problem, region=self.regions[region_id])
             name = aa_path.split('/')[-1]
             super(ADPResourceManager, self).run_model(save=True, name=name)
             regional_policies[region_id]["Stay"] = abstract_action
 
-        #self.train_adp_model_with_monte_carlo(regional_policies=regional_policies,
-        #                                      show=self.training_config.get("show", False))
-
         self.train_adp_model_with_deep_learning(regional_policies=regional_policies, setup_start=setup_start)
 
     def train_abstract_action(self, target_region=None, region_id=0):
-        environment = RegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
+        environment = DeanLinRegionalResourceAllocationEnvironment(self.ra_problem, region=target_region)
         abstract_action = self.algorithm('MlpPolicy', environment, verbose=1, tensorboard_log=self.log_dir)
 
         training_steps = self.training_config["stage1_training_steps"]
@@ -182,7 +130,8 @@ class ADPResourceManager(BaseResourceManager):
                                                                       auto_save_callback_every_1000_steps,
                                                                       checkpoint_callback_every_1000_steps])
 
-        self.plot_training_results(filename=name, show=self.training_config.get("show", False))
+        self.save_episode_rewards_as_csv()
+        # self.plot_training_results(filename=name, show=self.training_config.get("show", False))
 
     def train_adp_model_with_monte_carlo(self, regional_policies=None, show=False):
         self.environment = ADPResourceAllocationEnvironment(self.ra_problem, self.regions, regional_policies,

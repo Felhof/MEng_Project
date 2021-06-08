@@ -4,11 +4,12 @@ import time
 
 from resources.resourcemanager.resource_manager import ResourceManager
 from resources.resourcemanager.adp_resource_manager import ADPResourceManager
+from resources.resourcemanager.marl_resource_manager import MultiAgentResourceManager
 import resources.test_problems
 from resources.reward_checkpoints import CheckpointResults
 
 def main(resource_manager, resource_problem_dict, training_config, algorithm="A2C", problem_name="_multi",
-         iterations=9):
+         iterations=5):
     model_name = resource_problem_dict["name"] + problem_name + "_" + algorithm
     checkpoint_results = CheckpointResults(model_name=model_name)
 
@@ -45,22 +46,23 @@ if __name__ == "__main__":
                         help="how often to run the experiment")
     parser.add_argument('--l', action='store_true',
                         help='load stage 1 models from previous training run')
+    parser.add_argument('--ad', action="store_true",
+                        help='use Abbad-Daoui decomposition')
 
     args = parser.parse_args()
 
     test_problems = {
-        "tricky_problem": resources.test_problems.tricky_problem,
-        "deep_decomposable": resources.test_problems.deep_decomposable_problem,
-        "deep_decomposable_alt": resources.test_problems.deep_decomposable_problem_alt,
-        "wide_decomposable": resources.test_problems.wide_decomposable_problem2,
-        "wide_decomposable_alt": resources.test_problems.wide_decomposable_problem2_alt,
+        "split_on_best_5": resources.test_problems.split_on_best_5,
         "split_on_best_6": resources.test_problems.split_on_best_6,
         "split_on_best_7": resources.test_problems.split_on_best_7,
         "split_on_worst_6": resources.test_problems.split_on_worst_6,
         "split_on_worst_7": resources.test_problems.split_on_worst_7,
+        "unequal_rewards_varied_departure_p_5": resources.test_problems.unequal_rewards_varied_departure_p_5,
         "unequal_rewards_varied_departure_p_6": resources.test_problems.unequal_rewards_varied_departure_p_6,
         "unequal_rewards_varied_departure_p_7": resources.test_problems.unequal_rewards_varied_departure_p_7,
+        "equal_rewards_varied_departure_p_8": resources.test_problems.equal_rewards_varied_departure_p_8,
         "many_tasks": resources.test_problems.many_tasks,
+        "many_tasks_v2": resources.test_problems.many_tasks_v2,
         "many_tasks_small": resources.test_problems.many_tasks_small,
     }
 
@@ -72,7 +74,7 @@ if __name__ == "__main__":
     training_config = {
         "stage1_training_steps": stage1steps,
         "stage2_training_steps": stage2steps,
-        "steps_per_episode": 100,
+        "steps_per_episode": 500,
         "training_iterations": 10,
         "search_hyperparameters": args.hpsearch,
         "hpsearch_iterations": 10,
@@ -80,10 +82,13 @@ if __name__ == "__main__":
         "load": args.l
     }
 
-    name = "_multi"
+    name = "_dl"
     if args.baseline:
         resource_manager = ResourceManager
         name = "_baseline"
+    elif args.ad:
+        resource_manager = MultiAgentResourceManager
+        name = "_ad"
     else:
         resource_manager = ADPResourceManager
 

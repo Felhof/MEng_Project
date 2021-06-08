@@ -96,8 +96,10 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
 
     # SETTERS ----------------------------------------------------------------------------------------------------------
     def set_current_resource_availabilities(self, resource_availabilities):
-        assert (resource_availabilities >= 0).all()
-        assert (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all()
+        assert (resource_availabilities >= 0).all(), "must have nonnegative resources"
+        if not (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all():
+            print(resource_availabilities)
+        assert (resource_availabilities <= self.ra_problem.get_max_resource_availabilities()).all(), "resources must be within limit"
         self.current_resource_availabilities = resource_availabilities
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -177,51 +179,73 @@ class ResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):
         self.tasks_waiting = self.new_tasks()
 
 
-class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
+class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
 
-    def __init__(self, ra_problem, task_locks=None, lower_lvl_models=None, max_timesteps=500):
-        self.restricted_tasks = list(task_locks.keys())
-        self.amount_of_locked_tasks = list(task_locks.values())
-        super(RestrictedResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
-        self.lower_lvl_models = lower_lvl_models
-        self.in_hull = False
+    def __init__(self, ra_problem, region=None, max_timesteps=500):
+        self.region = region
+        self.restricted_task_ids = [task_lock.task_id for task_lock in region.task_conditions]
+        self.locked_task_ranges = [list(range(task_lock.min_value, task_lock.max_value + 1))
+                                   for task_lock in region.task_conditions]
+        super(RegionalResourceAllocationEnvironment, self).__init__(ra_problem, idle_reward=0,
+                                                                       max_timesteps=max_timesteps)
 
         locked_tasks = np.zeros(self.ra_problem.get_task_count())
-        for task, locked_amount in task_locks.items():
-            locked_tasks[task] = min(locked_amount)
+        for task_lock in region.task_conditions:
+            locked_tasks[task_lock.task_id] = task_lock.min_value
 
-        cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
-        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - cost_of_restricted_tasks
+        self.min_cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
+        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - \
+                                           self.min_cost_of_restricted_tasks
+
+    def reset(self, deterministic=False, seed=0):
+        super(RegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
+        #self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
+        self.tasks_in_processing[self.restricted_task_ids] = [min(r) for r in self.locked_task_ranges]
+
+class AbbadDaouiRegionalResourceAllocationEnvironment(RegionalResourceAllocationEnvironment):
+
+    def __init__(self, ra_problem, region=None, lower_lvl_models=None, max_timesteps=500):
+        #print(2)
+        super(AbbadDaouiRegionalResourceAllocationEnvironment, self).__init__(ra_problem, region=region,
+                                                                              max_timesteps=max_timesteps)
+        self.lower_lvl_models = lower_lvl_models
+        self.in_hull = False
+        print(3)
 
     def reset(self, deterministic=False, seed=0):
         """
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(RestrictedResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
-        self.tasks_in_processing[self.restricted_tasks] = [np.random.choice(r) for r in self.amount_of_locked_tasks]
+        #print("reset")
+        super(AbbadDaouiRegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
+        cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
+        cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
+        self.set_current_resource_availabilities(
+            self.get_current_resource_availabilities() - cost_of_tasks
+        )
         self.update_current_state()
-
         self.in_hull = False
 
         return self.current_state
 
     def finished_tasks(self):
+        #print("finished task")
         departure_probabilities = self.ra_problem.get_task_departure_p()
         finished_tasks = np.random.binomial(self.tasks_in_processing, departure_probabilities)
 
         def out_of_range(task_idx):
-            running = self.tasks_in_processing[task_idx] - finished_tasks[task_idx]
-            idx = self.restricted_tasks.index(task_idx)
-            return not(self.amount_of_locked_tasks[idx][0] <= running <= self.amount_of_locked_tasks[idx][-1])
+            n = self.tasks_in_processing[task_idx]
+            return not self.region.task_meets_all_conditions(n, task_idx)
 
-        reset_idxs = list(filter(out_of_range, self.restricted_tasks))
+        reset_idxs = list(filter(out_of_range, self.restricted_task_ids))
         finished_tasks[reset_idxs] = 0
 
         return finished_tasks
 
     def calculate_reward(self, allocations):
-        model_key = tuple(self.tasks_in_processing[self.restricted_tasks])
+        #print("rewards")
+        model_key = tuple(self.tasks_in_processing[self.restricted_task_ids])
         lower_lvl_model = self.lower_lvl_models.get(model_key, None)
         if lower_lvl_model is not None:
             self.in_hull = True
@@ -233,111 +257,23 @@ class RestrictedResourceAllocationEnvironment(ResourceAllocationEnvironment):
         return reward
 
     def step(self, action):
-        observation, reward, done, info = super(RestrictedResourceAllocationEnvironment, self).step(action)
+        #print("steps")
+        observation, reward, done, info = super(AbbadDaouiRegionalResourceAllocationEnvironment, self).step(action)
         done = done or self.in_hull
 
         return observation, reward, done, info
 
 
-class TargetedResourceAllocationEnvironment(ResourceAllocationEnvironment):
+class DeanLinRegionalResourceAllocationEnvironment(RegionalResourceAllocationEnvironment):
 
-    def __init__(self, ra_problem, target_region=None, start_region=None, max_timesteps=500, stay=False):
-        self.start_region = start_region
-        self.target_region = target_region
-        self.restricted_task_ids = [task_lock.task_id for task_lock in start_region.task_conditions]
-        self.locked_task_ranges = [list(range(task_lock.min_value, task_lock.max_value + 1))
-                                   for task_lock in start_region.task_conditions]
-        self.stay = stay
-        super(TargetedResourceAllocationEnvironment, self).__init__(ra_problem, idle_reward=0,
-                                                                    max_timesteps=max_timesteps)
-
-        locked_tasks = np.zeros(self.ra_problem.get_task_count())
-        for task_lock in start_region.task_conditions:
-            locked_tasks[task_lock.task_id] = task_lock.min_value
-
-        self.min_cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
-        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - self.min_cost_of_restricted_tasks
-
-        self.in_hull = False
-
-    def reset(self, deterministic=False, seed=0):
-        """
-        Important: the observation must be a numpy array
-        :return: (np.array)
-        """
-        super(TargetedResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
-        self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
-        cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
-        cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
-        self.set_current_resource_availabilities(
-            self.current_resource_availabilities - cost_of_tasks
-        )
-        self.update_current_state()
-        self.in_hull = False
-
-        return self.current_state
-
-    def calculate_reward(self, allocations):
-        goal_conditions_met = self.target_region.inside_region(self.tasks_in_processing)
-       # if self.in_hull:
-       #     reward = 1
-        if self.stay:
-            if goal_conditions_met:
-                reward = super(TargetedResourceAllocationEnvironment, self).calculate_reward(allocations)
-            else:
-                reward = 0
-        else:
-            if goal_conditions_met:
-                reward = 1
-            elif not self.start_region.inside_region(self.tasks_in_processing):
-                reward = -1
-            else:
-                reward = 0
-            #distance_to_target = self.target_region.distance_from_region(self.tasks_in_processing)
-            #reward = 1 - distance_to_target / 3
-
-        return reward
-
-    def step(self, action):
-        observation, reward, done, info = super(TargetedResourceAllocationEnvironment, self).step(action)
-
-        task_locks_satisfied = self.start_region.inside_region(self.tasks_in_processing)
-
-        if not task_locks_satisfied:
-                #t = self.current_timestep
-                #self.reset()
-                #reward = -10
-                #observation = self.current_state
-                #self.current_timestep = t
-            done = True
-
-        return observation, reward, done, info
-
-
-class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
-
-    def __init__(self, ra_problem, region=None, max_timesteps=500, stay=False):
-        self.region = region
-        self.restricted_task_ids = [task_lock.task_id for task_lock in region.task_conditions]
-        self.locked_task_ranges = [list(range(task_lock.min_value, task_lock.max_value + 1))
-                                   for task_lock in region.task_conditions]
-        self.stay = stay
-        super(RegionalResourceAllocationEnvironment, self).__init__(ra_problem, idle_reward=0,
-                                                                    max_timesteps=max_timesteps)
+    def __init__(self, ra_problem, region=None, max_timesteps=500):
+        super(DeanLinRegionalResourceAllocationEnvironment, self).__init__(ra_problem, region=region,
+                                                                           max_timesteps=max_timesteps)
 
         self.number_of_locked_tasks = len(self.restricted_task_ids)
         self.action_space = spaces.MultiBinary(self.ra_problem.get_task_count() - self.number_of_locked_tasks)
         self.observation_dim = self.translate_state(self.observation_dim)
         self.observation_space = spaces.MultiDiscrete(self.observation_dim)
-
-        locked_tasks = np.zeros(self.ra_problem.get_task_count())
-        for task_lock in region.task_conditions:
-            locked_tasks[task_lock.task_id] = task_lock.min_value
-
-        self.min_cost_of_restricted_tasks = self.ra_problem.calculate_resources_used(locked_tasks)
-        self.max_resource_availabilities = self.ra_problem.get_max_resource_availabilities() - self.min_cost_of_restricted_tasks
-
-        self.in_hull = False
 
     def translate_state(self, state):
         length = len(state) // 2
@@ -347,11 +283,11 @@ class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
         return state
 
     def update_current_state(self):
-        super(RegionalResourceAllocationEnvironment, self).update_current_state()
+        super(DeanLinRegionalResourceAllocationEnvironment, self).update_current_state()
         self.current_state = self.translate_state(self.current_state)
 
     def finished_tasks(self):
-        finished_tasks = super(RegionalResourceAllocationEnvironment, self).finished_tasks()
+        finished_tasks = super(DeanLinRegionalResourceAllocationEnvironment, self).finished_tasks()
         finished_tasks[self.restricted_task_ids] = 0
 
         return finished_tasks
@@ -361,57 +297,21 @@ class RegionalResourceAllocationEnvironment(ResourceAllocationEnvironment):
         Important: the observation must be a numpy array
         :return: (np.array)
         """
-        super(RegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
-        self.tasks_in_processing[self.restricted_task_ids] = [np.random.choice(r) for r in self.locked_task_ranges]
+        super(DeanLinRegionalResourceAllocationEnvironment, self).reset(deterministic=deterministic, seed=seed)
         cost_of_tasks = self.ra_problem.calculate_resources_used(self.tasks_in_processing)
         cost_of_tasks -= self.min_cost_of_restricted_tasks.astype(int)
         self.set_current_resource_availabilities(
             self.current_resource_availabilities - cost_of_tasks
         )
         self.update_current_state()
-        self.in_hull = False
 
         return self.current_state
 
     def step(self, action):
         action = np.append(action, np.array([0] * self.number_of_locked_tasks))
-        observation, reward, done, info = super(RegionalResourceAllocationEnvironment, self).step(action)
+        observation, reward, done, info = super(DeanLinRegionalResourceAllocationEnvironment, self).step(action)
 
         return observation, reward, done, info
-
-
-class Region:
-
-    def __init__(self, task_conditions):
-        self.task_conditions = task_conditions
-
-    def inside_region(self, task):
-        return all([task_condition.satisfied(task) for task_condition in self.task_conditions])
-
-    def distance_from_region(self, tasks):
-        distance_vector = np.asarray([task_condition.distance(tasks) for task_condition in self.task_conditions])
-        distance = np.linalg.norm(distance_vector)
-        return distance
-
-
-class TaskCondition:
-
-    def __init__(self, task_id=0, min_value=0, max_value=1):
-        self.task_id = task_id
-        self.min_value = min_value
-        self.max_value = max_value
-
-    def satisfied(self, tasks):
-        return self.min_value <= tasks[self.task_id] <= self.max_value
-
-    def distance(self, tasks):
-        if self.min_value <= tasks[self.task_id] <= self.max_value:
-            d = 0
-        elif tasks[self.task_id] < self.min_value:
-            d = self.min_value - tasks[self.task_id]
-        else:
-            d = tasks[self.task_id] - self.max_value
-        return d
 
 
 class MDPResourceAllocationEnvironment(ResourceAllocationEnvironmentBase):

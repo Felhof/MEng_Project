@@ -51,4 +51,5 @@ class ResourceManager(BaseResourceManager):
                                                                                 auto_save_callback_every_1000_steps,
                                                                                 checkpoint_callback_every_1000_steps])
 
-        self.plot_training_results(filename=self.model_name + "_results", show=True)
+        self.save_episode_rewards_as_csv()
+        # self.plot_training_results(filename=self.model_name + "_results", show=True)
