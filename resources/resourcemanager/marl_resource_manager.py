@@ -10,8 +10,8 @@ import multiprocessing as mp
 import time
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap.rap_environment import ResourceAllocationEnvironment, \
-    AbbadDaouiRegionalResourceAllocationEnvironment
+from resources.environments.rap.rap_environment import ResourceAllocationEnvironment
+from resources.environments.rap.rap_restricted import AbbadDaouiRegionalResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback

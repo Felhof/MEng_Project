@@ -10,7 +10,7 @@ class ADPResourceAllocationEnvironment(ResourceAllocationEnvironment):
                  n_locked_tasks=1, max_timesteps=500):
         super(ADPResourceAllocationEnvironment, self).__init__(ra_problem, max_timesteps=max_timesteps)
         self.regions = regions
-        self.regional_policies = regional_policies  # Dictionary from regions to list of abstract actions
+        self.regional_policies = regional_policies
         self.action_to_direction = abstract_action_to_direction
         self.action_space = spaces.Discrete(n_abstract_actions)
         self.observation_space = spaces.MultiDiscrete([len(regions)] + ([2] * n_locked_tasks))
