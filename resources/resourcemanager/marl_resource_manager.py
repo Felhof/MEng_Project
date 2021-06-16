@@ -1,5 +1,4 @@
 import os
-import itertools
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
@@ -11,7 +10,7 @@ import multiprocessing as mp
 import time
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import ResourceAllocationEnvironment, \
+from resources.environments.rap.rap_environment import ResourceAllocationEnvironment, \
     AbbadDaouiRegionalResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
 from resources.resourcemanager.base_resource_manager import BaseResourceManager

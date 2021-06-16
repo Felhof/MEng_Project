@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import itertools
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import DeanLinRegionalResourceAllocationEnvironment
-from resources.environments.adp_environment import ADPResourceAllocationEnvironment
+from resources.environments.rap.rap_environment import DeanLinRegionalResourceAllocationEnvironment
+from resources.environments.rap.adp_environment import ADPResourceAllocationEnvironment
 from resources.region import Region
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
 

@@ -1,5 +1,7 @@
-from resources.environments.room_environment import RoomEnvironment
-from resources.environments.maze import Maze, MazeModel, Point, Rectangle, Area
+from resources.environments.gridworld.room_environment import RoomEnvironment
+from resources.environments.gridworld.maze_environment import MazeEnvironment
+from resources.environments.gridworld.geometry import Area, Rectangle, Point
+from resources.environments.gridworld.maze_model import MazeModel
 from resources.sac_agent import SACAgent
 
 import multiprocessing as mp
@@ -12,7 +14,7 @@ MAX_WORKERS = 4
 
 
 def main(config, iterations=15):
-    maze = Maze(config)
+    maze = MazeEnvironment(config)
     maze_models = []
 
     for _ in range(iterations):

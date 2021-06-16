@@ -1,7 +1,7 @@
 from gym import spaces
 import numpy as np
 
-from resources.environments.rap_environment import ResourceAllocationEnvironment
+from resources.environments.rap.rap_environment import ResourceAllocationEnvironment
 
 
 class ADPResourceAllocationEnvironment(ResourceAllocationEnvironment):

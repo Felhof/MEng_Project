@@ -1,15 +1,11 @@
-import time
-
 from resources.resourcemanager.base_resource_manager import BaseResourceManager
 
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.cmd_util import make_vec_env
-from stable_baselines3.common.results_plotter import load_results, ts2xy
 
 from resources.callbacks import SaveOnBestTrainingRewardCallback, ProgressBarManager
-from resources.environments.rap_environment import ResourceAllocationEnvironment
+from resources.environments.rap.rap_environment import ResourceAllocationEnvironment
 from resources.callbacks import SavePerformanceOnCheckpoints
 from stable_baselines3.common.callbacks import EveryNTimesteps
 
