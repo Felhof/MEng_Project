@@ -8,17 +8,14 @@ from tqdm.auto import tqdm
 
 
 class SavePerformanceOnCheckpoints(BaseCallback):
-    def __init__(self, stage1_time=0, checkpoints=None, resource_manager=None, n_eval_episodes=10000, name="",
+    def __init__(self, stage1_time=0, resource_manager=None, n_eval_episodes=10000, name="",
                  checkpoint_results=None, log_dir="/tmp/gym"):
         super(SavePerformanceOnCheckpoints, self).__init__()
         self.start_time = 0
         self.checkpoint_scores = []
         self.checkpoint_id = 0
         self.stage1_time = stage1_time
-        if checkpoints is None:
-            self.checkpoints = [4, 8, 12, 16, 20]
-        else:
-            self.checkpoints = checkpoints
+        self.checkpoints = checkpoint_results.checkpoints
         self.rm = resource_manager
         self.n_eval_episodes = n_eval_episodes
         self.name = name

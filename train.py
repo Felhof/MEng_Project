@@ -10,7 +10,7 @@ import argparse
 def main(resource_manager, resource_problem_dict, training_config, algorithm="A2C", problem_name="_multi",
          iterations=5):
     model_name = resource_problem_dict["name"] + problem_name + "_" + algorithm
-    checkpoint_results = CheckpointResults(model_name=model_name)
+    checkpoint_results = CheckpointResults(checkpoints=resource_problem_dict["Checkpoints"], model_name=model_name)
 
     for _ in range(iterations):
         rm = resource_manager(resource_problem_dict,

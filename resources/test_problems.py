@@ -28,7 +28,8 @@ simple_problem_A = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 simple_problem_B = {
@@ -56,7 +57,8 @@ simple_problem_B = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 simple_problem_C = {
@@ -84,7 +86,8 @@ simple_problem_C = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 
@@ -113,7 +116,8 @@ simple_problem_D = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 simple_problem_E = {
@@ -141,7 +145,8 @@ simple_problem_E = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 varying_departure_p_E = {
@@ -169,7 +174,8 @@ varying_departure_p_E = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 varying_departure_p_D = {
@@ -197,7 +203,8 @@ varying_departure_p_D = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 varying_departure_p_C = {
@@ -225,7 +232,8 @@ varying_departure_p_C = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 
@@ -253,7 +261,8 @@ varying_cost_C = {
         1: [Region([TaskCondition(task_id=4, min_value=2, max_value=2)])],
         2: [Region([TaskCondition(task_id=4, min_value=1, max_value=1)])],
         3: [Region([TaskCondition(task_id=4, min_value=0, max_value=0)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 varying_cost_D = {
@@ -281,7 +290,8 @@ varying_cost_D = {
         2: [Region([TaskCondition(task_id=4, min_value=3, max_value=3)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=2)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 varying_cost_E = {
@@ -309,7 +319,8 @@ varying_cost_E = {
         2: [Region([TaskCondition(task_id=4, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=4, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=4, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [2, 4, 6, 8, 10]
 }
 
 
@@ -339,7 +350,8 @@ split_on_best_5 = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 split_on_best_6 = {
@@ -367,7 +379,8 @@ split_on_best_6 = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_5 = {
@@ -395,7 +408,8 @@ unequal_rewards_varied_departure_p_5 = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_6 = {
@@ -423,7 +437,8 @@ unequal_rewards_varied_departure_p_6 = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_6_A = {
@@ -451,7 +466,8 @@ unequal_rewards_varied_departure_p_6_A = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_6_B = {
@@ -479,7 +495,8 @@ unequal_rewards_varied_departure_p_6_B = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 
@@ -501,7 +518,8 @@ split_on_worst_6 = {
     "direction_to_action": {
         "Up": np.array([0, 0, 0, 0, 0, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0])
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 split_on_best_7 = {
@@ -529,7 +547,8 @@ split_on_best_7 = {
         2: [Region([TaskCondition(task_id=6, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=6, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=6, min_value=0, max_value=1)])]
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 split_on_worst_7 = {
@@ -554,7 +573,8 @@ split_on_worst_7 = {
         "Up_2": np.array([0, 0, 0, 0, 0, 1, 0]),
         "Up_both": np.array([0, 0, 0, 0, 0, 1, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0])
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_7 = {
@@ -589,7 +609,8 @@ unequal_rewards_varied_departure_p_7 = {
                     TaskCondition(task_id=5, min_value=4, max_value=7)])],
         2: [Region([TaskCondition(task_id=6, min_value=0, max_value=3),
                     TaskCondition(task_id=5, min_value=0, max_value=3)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_7_A = {
@@ -624,7 +645,8 @@ unequal_rewards_varied_departure_p_7_A = {
                     TaskCondition(task_id=5, min_value=4, max_value=7)])],
         2: [Region([TaskCondition(task_id=6, min_value=0, max_value=3),
                     TaskCondition(task_id=5, min_value=0, max_value=3)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 unequal_rewards_varied_departure_p_7_B = {
@@ -659,7 +681,8 @@ unequal_rewards_varied_departure_p_7_B = {
                     TaskCondition(task_id=5, min_value=4, max_value=7)])],
         2: [Region([TaskCondition(task_id=6, min_value=0, max_value=3),
                     TaskCondition(task_id=5, min_value=0, max_value=3)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 
@@ -701,7 +724,8 @@ equal_rewards_varied_departure_p_8 = {
                     TaskCondition(task_id=5, min_value=4, max_value=7)])],
         2: [Region([TaskCondition(task_id=6, min_value=0, max_value=3),
                     TaskCondition(task_id=5, min_value=0, max_value=3)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 
@@ -746,7 +770,8 @@ many_tasks = {
                     TaskCondition(task_id=6, min_value=2, max_value=2)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1),
                     TaskCondition(task_id=6, min_value=0, max_value=1)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 
@@ -781,7 +806,8 @@ many_tasks_v2 = {
                     TaskCondition(task_id=8, min_value=2, max_value=2)])],
         1: [Region([TaskCondition(task_id=7, min_value=0, max_value=1),
                     TaskCondition(task_id=8, min_value=0, max_value=1)])],
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 
@@ -807,7 +833,8 @@ many_tasks_small = {
         "Up_8": np.array([0, 0, 0, 0, 0, 0, 0, 0, 1]),
         "Up_78": np.array([0, 0, 0, 0, 0, 0, 0, 1, 1]),
         "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    }
+    },
+    "Checkpoints": [4, 8, 12, 16, 20]
 }
 
 deep_6 = {
@@ -835,47 +862,6 @@ deep_6 = {
         2: [Region([TaskCondition(task_id=5, min_value=4, max_value=5)])],
         3: [Region([TaskCondition(task_id=5, min_value=2, max_value=3)])],
         4: [Region([TaskCondition(task_id=5, min_value=0, max_value=1)])]
-    }
-}
-
-"""
-"abstract_action_to_direction": {
-        0: "Stay",
-        1: "Up_5",
-        2: "Up_6",
-        3: "Up_7",
-        4: "Up_8",
-        5: "Up_56",
-        6: "Up_57",
-        7: "Up_58",
-        8: "Up_67",
-        9: "Up_68",
-        10: "Up_78",
-        11: "Up_567",
-        12: "Up_568",
-        13: "Up_578",
-        14: "Up678",
-        15: "Up5678",
-        16: "Down"
     },
-    "direction_to_action": {
-        "Up_5": np.array([0, 0, 0, 0, 0, 1, 0, 0, 0]),
-        "Up_6": np.array([0, 0, 0, 0, 0, 0, 1, 0, 0]),
-        "Up_7": np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
-        "Up_8": np.array([0, 0, 0, 0, 0, 0, 0, 0, 1]),
-        "Up_56": np.array([0, 0, 0, 0, 0, 1, 1, 0, 0]),
-        "Up_57": np.array([0, 0, 0, 0, 0, 1, 0, 1, 0]),
-        "Up_58": np.array([0, 0, 0, 0, 0, 1, 0, 0, 1]),
-        "Up_67": np.array([0, 0, 0, 0, 0, 0, 1, 1, 0]),
-        "Up_68": np.array([0, 0, 0, 0, 0, 0, 1, 0, 1]),
-        "Up_78": np.array([0, 0, 0, 0, 0, 0, 0, 1, 1]),
-        "Up_567": np.array([0, 0, 0, 0, 0, 1, 1, 1, 0]),
-        "Up_568": np.array([0, 0, 0, 0, 0, 1, 1, 0, 1]),
-        "Up_578": np.array([0, 0, 0, 0, 0, 1, 0, 1, 1]),
-        "Up678": np.array([0, 0, 0, 0, 0, 0, 1, 1, 1]),
-        "Up5678": np.array([0, 0, 0, 0, 0, 1, 1, 1, 1]),
-        "Down": np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    }
-"""
-
-
+    "Checkpoints": [4, 8, 12, 16, 20]
+}
