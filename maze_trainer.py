@@ -2,38 +2,27 @@ from resources.environments.room_environment import RoomEnvironment
 from resources.environments.maze import Maze, MazeModel, Point, Rectangle, Area
 from resources.sac_agent import SACAgent
 
-import numpy as np
-
 import multiprocessing as mp
 import time
 import matplotlib.pyplot as plt
 
 
 SECONDS_PER_MINUTE = 60
+MAX_WORKERS = 4
 
 
-def main(config, iterations=5):
+def main(config, iterations=15):
     maze = Maze(config)
     maze_models = []
 
-    iteration_rewards = []
-    times_goal_reached = 0
-
     for _ in range(iterations):
         maze_model = train_maze_model(maze, config["name"])
-        iteration_reward = 0
-        reached_goal = False
         obs = maze.reset()
         for n in range(300):
             action = maze_model.predict(obs)
             obs, reward = maze.step(action)
-            reached_goal = reached_goal or maze.is_goal(obs)
-            iteration_reward += reward
-            #maze.render()
-            #time.sleep(0.01)
 
         maze_models.append(maze_model)
-        iteration_rewards.append(np.mean(iteration_reward))
 
     alpha = 1/iterations
     position = maze.reset()
@@ -44,13 +33,10 @@ def main(config, iterations=5):
         image = maze.draw_policy(image, maze_model, position, alpha=alpha)
 
     maze.save_policy(image, config["name"] + "_average")
-    print("{0} reward mean: {1}".format(config["name"], np.mean(iteration_rewards)))
-    print("{0} reward variance: {1}".format(config["name"], np.var(iteration_rewards)))
-    print("{0} reached goal {1} times".format(config["name"], times_goal_reached))
 
 
 def train_maze_model(maze, name, show=False):
-    num_workers = mp.cpu_count() - 2
+    num_workers = min(mp.cpu_count(), MAX_WORKERS)
 
     room_models = []
     lvl = 0
@@ -90,7 +76,8 @@ def train_maze_model(maze, name, show=False):
     return maze_model
 
 
-def train_room_model(maze=None, room=None, lower_lvls=None, title="Room_Model", display_on=False, plot=False):
+def train_room_model(maze=None, room=None, lower_lvls=None, target_network_update_interval=25, title="Room_Model",
+                     display_on=False, plot=False):
 
     environment = RoomEnvironment(maze=maze, room=room, lower_levels=lower_lvls)
 
@@ -104,22 +91,26 @@ def train_room_model(maze=None, room=None, lower_lvls=None, title="Room_Model", 
     start_time = time.time()
     end_time = start_time + room.training_time
 
+    num_steps_taken = 0
+
     while time.time() < end_time:
         time_passed = round(time.time() - start_time, 2)
         print("{0}/{1}".format(time_passed, room.training_time), end='\r')
         action = room_model.get_next_action(state)
         next_state, reward, done, info = environment.step(action)
         episode_reward += reward
-        room_model.set_next_state_and_reward(next_state, reward)
+        room_model.train_on_transition(state, action, next_state, reward)
+        if num_steps_taken % target_network_update_interval == 0:
+            room_model.update_target_networks()
         state = next_state
         if done:
             reward_per_episode.append(episode_reward)
             episode_reward = 0
             state = environment.reset()
-        # Optionally, show the environment
         if display_on:
             environment.render(show_policy=False, model=room_model)
             time.sleep(0.02)
+        num_steps_taken += 1
 
     if plot:
         position = environment.reset()
@@ -140,6 +131,61 @@ def train_room_model(maze=None, room=None, lower_lvls=None, title="Room_Model", 
 
     return room_model, environment
 
+
+three_rooms_one_area_maze_config = {
+    "name": "3-rooms-1-area",
+    "size": 1,
+    "start": Point(0.15, 0.75),
+    "goal": Point(0.9, 0.5),
+    "rooms": [
+        {
+            "lvl": 0,
+            "area": Area([Rectangle(Point(0.0, 0.0), Point(1., 1.))]),
+            "entrypoints": [Point(0.15, 0.75)],
+            "policy color": "red",
+            "time": 10*SECONDS_PER_MINUTE
+        }
+    ],
+    "walls": [Rectangle(Point(0.3, 0.0), Point(0.4, 0.3)), Rectangle(Point(0.3, 0.5), Point(0.4, 1.0)),
+              Rectangle(Point(0.6, 0.0), Point(0.7, 0.6)), Rectangle(Point(0.6, 0.8), Point(0.7, 1.0))]
+}
+
+
+
+three_rooms_three_areas_maze_config = {
+    "name": "3-rooms-3-areas",
+    "size": 1,
+    "start": Point(0.15, 0.75),
+    "goal": Point(0.9, 0.5),
+    "rooms": [
+        {
+            # left
+            "lvl": 0,
+            "area": Area([Rectangle(Point(0.6, 0.0), Point(1., 1.))]),
+            "entrypoints": [Point(0.65, 0.65), Point(0.65, 0.75)],
+            "policy color": "red",
+            "time": 10*SECONDS_PER_MINUTE/3
+        },
+        {
+            # middle
+            "lvl": 1,
+            "area": Area([Rectangle(Point(0.3, 0.0), Point(0.6, 1.0))]),
+            "entrypoints": [Point(0.35, 0.35), Point(0.35, 0.45)],
+            "policy color": "blue",
+            "time": 10*SECONDS_PER_MINUTE/3
+        },
+        {
+            # right
+            "lvl": 2,
+            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.3, 1.0))]),
+            "entrypoints": [Point(0.15, 0.75)],
+            "policy color": "pink",
+            "time": 10*SECONDS_PER_MINUTE/3
+        }
+    ],
+    "walls": [Rectangle(Point(0.3, 0.0), Point(0.4, 0.3)), Rectangle(Point(0.3, 0.5), Point(0.4, 1.0)),
+              Rectangle(Point(0.6, 0.0), Point(0.7, 0.6)), Rectangle(Point(0.6, 0.8), Point(0.7, 1.0))]
+}
 
 four_rooms_four_areas_maze_config = {
     "name": "4-rooms-4-areas",
@@ -205,52 +251,6 @@ four_rooms_one_area_maze_config = {
               Rectangle(Point(1.7, 0.9), Point(2.0, 1.0)), Rectangle(Point(1.0, 1.6), Point(1.1, 2.0))]
 }
 
-two_paths_maze_config = {
-    "name": "2_paths_4_areas",
-    "training_steps": [20000, 50000, 50000, 50000, 20000],
-    "size": 2.5,
-    "start": Point(0.1, 0.2),
-    "goal": Point(2.3, 1.0),
-    "rooms": [
-        {
-            "lvl": 0,
-            "area": Area([Rectangle(Point(1.7, 0.6), Point(2.5, 1.4))]),
-            "entrypoints": [Point(2.05, 0.65), Point(2.15, 0.65),
-                            Point(2.05, 1.35), Point(2.15, 1.35)],
-            "policy color": "red"
-        },
-        {
-            "lvl": 1,
-            "area": Area([Rectangle(Point(0.8, 0.), Point(2.5, 0.6))]),
-            "entrypoints": [Point(0.85, 0.15), Point(0.85, 0.25)],
-            "policy color": "blue"
-        },
-        {
-            "lvl": 2,
-            "area": Area([Rectangle(Point(0.8, 1.3), Point(2.5, 2.5))]),
-            "entrypoints": [Point(1.35, 1.35), Point(1.45, 1.35)],
-            "policy color": "blue"
-        },
-        {
-            "lvl": 3,
-            "area": Area([Rectangle(Point(0.8, 0.6), Point(1.7, 1.3))]),
-            "entrypoints": [Point(0.85, 0.75), Point(0.85, 0.85)],
-            "policy color": "pink"
-        },
-        {
-            "lvl": 4,
-            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.8, 2.5))]),
-            "entrypoints": [Point(0.1, 0.2)],
-            "policy color": "red"
-        },
-    ],
-    "walls": [Rectangle(Point(0.8, 0.0), Point(0.9, 0.1)), Rectangle(Point(0.8, 0.3), Point(0.9, 0.7)),
-              Rectangle(Point(0.8, 0.6), Point(2.0, 0.7)), Rectangle(Point(2.2, 0.6), Point(2.5, 0.7)),
-              Rectangle(Point(0.8, 0.9), Point(0.9, 2.5)), Rectangle(Point(0.9, 1.3), Point(1.3, 1.4)),
-              Rectangle(Point(1.7, 0.6), Point(1.8, 1.4)), Rectangle(Point(1.5, 1.3), Point(2.0, 1.4)),
-              Rectangle(Point(2.2, 1.3), Point(2.5, 1.4))]
-}
-
 maze_with_local_maxmimum_4_areas = {
     "name": "maze_with_local_maxmimum_4_areas",
     "size": 2,
@@ -295,8 +295,9 @@ maze_with_local_maxmimum_4_areas = {
               Rectangle(Point(0.7, 1.3), Point(1.2, 1.4)), Rectangle(Point(1.4, 1.3), Point(2.0, 1.4))]
 }
 
-maze_with_local_maxmimum_3_areas = {
-    "name": "maze_with_local_maxmimum_3_areas",
+
+maze_with_local_maxmimum_1_area = {
+    "name": "maze_with_local_maxmimum_1_area",
     "size": 2,
     "start": Point(0.95, 1.65),
     "goal": Point(1.5, 0.3),
@@ -304,56 +305,11 @@ maze_with_local_maxmimum_3_areas = {
         {
             # top right
             "lvl": 0,
-            "area": Area([Rectangle(Point(0.9, 0.0), Point(2., 0.7))]),
-            "entrypoints": [Point(0.95, 0.25), Point(0.95, 0.25)],
-            "policy color": "red",
-            "time": 10*SECONDS_PER_MINUTE/3
-        },
-        {
-            # top left
-            "lvl": 1,
-            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.9, 1.4))]),
-            "entrypoints": [Point(0.55, 1.35), Point(0.65, 1.35)],
-            "policy color": "blue",
-            "time": 10*SECONDS_PER_MINUTE/3
-        },
-        {
-            # bottom
-            "lvl": 2,
-            "area": Area([Rectangle(Point(0.9, 0.7), Point(2.0, 1.4)), Rectangle(Point(0.0, 1.4), Point(2.0, 2.0))]),
+            "area": Area([Rectangle(Point(0.0, 0.0), Point(2., 2.))]),
             "entrypoints": [Point(0.95, 1.65)],
-            "policy color": "blue",
-            "time": 10*SECONDS_PER_MINUTE/3
-        },
-    ],
-    "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
-              Rectangle(Point(0.9, 0.6), Point(2.0, 0.7)), Rectangle(Point(0.0, 1.3), Point(0.5, 1.4)),
-              Rectangle(Point(0.7, 1.3), Point(1.2, 1.4)), Rectangle(Point(1.4, 1.3), Point(2.0, 1.4))]
-}
-
-maze_with_local_maxmimum_2_areas = {
-    "name": "maze_with_local_maxmimum_2_areas",
-    "size": 2,
-    "start": Point(0.55, 1.35),
-    "goal": Point(1.5, 0.3),
-    "rooms": [
-        {
-            # top right
-            "lvl": 0,
-            "area": Area([Rectangle(Point(0.9, 0.0), Point(2., 0.7))]),
-            "entrypoints": [Point(0.95, 0.25), Point(0.95, 0.25)],
             "policy color": "red",
-            "time": SECONDS_PER_MINUTE
-        },
-        {
-            # rest
-            "lvl": 1,
-            "area": Area([Rectangle(Point(0.0, 0.0), Point(0.9, 1.4)), Rectangle(Point(0.9, 0.7), Point(2.0, 1.4)),
-                          Rectangle(Point(0.0, 1.4), Point(2.0, 2.0))]),
-            "entrypoints": [Point(0.55, 1.35), Point(0.65, 1.35)],
-            "policy color": "blue",
-            "time": 3*SECONDS_PER_MINUTE
-        },
+            "time": 10*SECONDS_PER_MINUTE
+        }
     ],
     "walls": [Rectangle(Point(0.9, 0.0), Point(1.0, 0.2)), Rectangle(Point(0.9, 0.4), Point(1.0, 1.4)),
               Rectangle(Point(0.9, 0.6), Point(2.0, 0.7)), Rectangle(Point(0.0, 1.3), Point(0.5, 1.4)),
@@ -362,4 +318,4 @@ maze_with_local_maxmimum_2_areas = {
 
 
 if __name__ == "__main__":
-    main(maze_with_local_maxmimum_3_areas)
+    main(three_rooms_three_areas_maze_config)

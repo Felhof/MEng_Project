@@ -713,7 +713,7 @@ many_tasks = {
     "max_resource_availabilities": np.array([8, 8, 8]),
     "task_arrival_p": np.array([0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]),
     "task_departure_p": np.array([0.3, 0.15, 0.2, 0.25, 0.2, 0.3, 0.25, 0.2, 0.15]),
-    "locked_tasks": [5, 6],
+    "locked_tasks": [7, 8],
     "n_abstract_actions": 5,
     "n_locked_tasks": 2,
     "abstract_action_to_direction": {
