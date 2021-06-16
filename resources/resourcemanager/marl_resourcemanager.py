@@ -13,7 +13,7 @@ from resources.callbacks import ProgressBarManager
 from resources.environments.rap.rap_environment import ResourceAllocationEnvironment
 from resources.environments.rap.rap_restricted import AbbadDaouiRegionalResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
-from resources.resourcemanager.base_resource_manager import BaseResourceManager
+from resources.resourcemanager.base_resourcemanager import BaseResourceManager
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
 
 import ray
@@ -184,7 +184,6 @@ class MultiAgentResourceManager(BaseResourceManager):
             "max_grad_norm": tune.uniform(0.25, 0.75)
         }
 
-        # To print the current trial status
         reporter = CLIReporter(metric_columns=["reward", "std", "evaluation_iteration"])
 
         ray.init(log_to_driver=False)

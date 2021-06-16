@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import csv
 
 from stable_baselines3.common.results_plotter import load_results, ts2xy
-import numpy as np
 from stable_baselines3 import A2C, PPO
 
 from resources.resource_allocation_problem import ResourceAllocationProblem
@@ -72,62 +71,10 @@ class BaseResourceManager:
             results_writer.writerow(episode)
             results_writer.writerow(rewards)
 
-
-    def evaluate_model(self, n_episodes=10, episode_length=500, render=False):
-        print("Comparing Model to optimal strategy...")
-        model_rewards = [
-            self.get_model_solution(episode_length=episode_length, render=render) for _ in range(n_episodes)
-        ]
-        optimal_strategy_rewards = [
-            self.calculate_optimal_solution(episode_length=episode_length) for _ in range(n_episodes)
-        ]
-        print("In {0} episodes the model achieved an average reward of: {1}".format(
-            n_episodes,
-            np.mean(model_rewards)
-        ))
-        print("The optimal strategy achieved an average reward of: {1}".format(
-            n_episodes,
-            np.mean(optimal_strategy_rewards)
-        ))
-
     def save_model(self):
         filename = "models/{}".format(self.model_name)
         path = os.path.abspath(filename)
         self.model.save(path)
-
-    def get_model_solution(self, episode_length=500, render=False):
-        reward = 0
-        observation = self.vector_environment.reset()
-        for _ in range(episode_length):
-            action, _ = self.model.predict(observation, deterministic=True)
-            observation, r, _, _ = self.vector_environment.step(action)
-            reward += r
-            if render:
-                self.vector_environment.show(mode='console')
-
-        return reward
-
-    def calculate_optimal_solution(self, episode_length=500):
-        self.ra_problem.reset()
-        observation = self.vector_environment.reset()
-        reward = 0
-        for _ in range(episode_length):
-            action = self.ra_problem.get_heuristic_solution(observation)
-            observation, r, _, _ = self.vector_environment.step(action)
-            reward += r
-
-        return reward
-
-    def print_policy(self):
-        all_observations = self.environment.enumerate_observations()
-        policy = {}
-
-        for observation in all_observations:
-            action = self.model.predict(observation, deterministic=True)
-            policy[tuple(observation)] = action
-
-        for item in policy.items():
-            print("{0} : {1}".format(item[0], list(item[1])))
 
     def run_model(self, n_steps=250, save=False, name="", file_location="data", model_path=None):
         if model_path is not None:

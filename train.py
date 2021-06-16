@@ -1,6 +1,6 @@
-from resources.resourcemanager.resource_manager import ResourceManager
-from resources.resourcemanager.adp_resource_manager import ADPResourceManager
-from resources.resourcemanager.marl_resource_manager import MultiAgentResourceManager
+from resources.resourcemanager.resourcemanager import ResourceManager
+from resources.resourcemanager.adp_resourcemanager import ADPResourceManager
+from resources.resourcemanager.marl_resourcemanager import MultiAgentResourceManager
 import resources.test_problems
 from resources.reward_checkpoints import CheckpointResults
 

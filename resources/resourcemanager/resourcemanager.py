@@ -1,4 +1,4 @@
-from resources.resourcemanager.base_resource_manager import BaseResourceManager
+from resources.resourcemanager.base_resourcemanager import BaseResourceManager
 
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.monitor import Monitor
@@ -19,10 +19,8 @@ class ResourceManager(BaseResourceManager):
         self.model_name = rap["name"] + "_baseline"
 
         self.environment = ResourceAllocationEnvironment(self.ra_problem)
-        # If the environment doesn't follow the interface, an error will be thrown
         check_env(self.environment, warn=True)
 
-        # wrap it
         self.vector_environment = make_vec_env(lambda: self.environment, n_envs=1, monitor_dir=self.log_dir)
 
         self.training_steps = training_config["stage1_training_steps"]
@@ -48,4 +46,3 @@ class ResourceManager(BaseResourceManager):
                                                                                 checkpoint_callback_every_1000_steps])
 
         self.save_episode_rewards_as_csv()
-        # self.plot_training_results(filename=self.model_name + "_results", show=True)
