@@ -1,5 +1,4 @@
 import os
-import itertools
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
@@ -11,10 +10,10 @@ import multiprocessing as mp
 import time
 
 from resources.callbacks import ProgressBarManager
-from resources.environments.rap_environment import ResourceAllocationEnvironment, \
-    AbbadDaouiRegionalResourceAllocationEnvironment
+from resources.environments.rap.rap_environment import ResourceAllocationEnvironment
+from resources.environments.rap.rap_restricted import AbbadDaouiRegionalResourceAllocationEnvironment
 from resources.multistage_model import MultiStageActorCritic
-from resources.resourcemanager.base_resource_manager import BaseResourceManager
+from resources.resourcemanager.base_resourcemanager import BaseResourceManager
 from resources.callbacks import SavePerformanceOnCheckpoints, SaveOnBestTrainingRewardCallback
 
 import ray
@@ -58,7 +57,7 @@ class MultiAgentResourceManager(BaseResourceManager):
                 }
 
                 policy_kwargs = {}
-                submodel_name = self.model_name + "_stage1_lvl" + str(idx)
+                submodel_name = self.model_name + "_stage1_lvl" + str(lvl) + "_" + str(idx)
                 if self.training_config["search_hyperparameters"] and (stage1_hyperparams[idx] is None):
                     stage1_hyperparams[idx] = self.search_hyperparams(AbbadDaouiRegionalResourceAllocationEnvironment,
                                                                       environment_kwargs,
@@ -185,7 +184,6 @@ class MultiAgentResourceManager(BaseResourceManager):
             "max_grad_norm": tune.uniform(0.25, 0.75)
         }
 
-        # To print the current trial status
         reporter = CLIReporter(metric_columns=["reward", "std", "evaluation_iteration"])
 
         ray.init(log_to_driver=False)
@@ -278,10 +276,13 @@ class MultiAgentResourceManager(BaseResourceManager):
 
         self.save_episode_rewards_as_csv()
 
+        full_model_path = os.path.abspath("models/" + self.model_name + "_full_model")
+        model.save(full_model_path)
+
         return model
 
     def train_model_and_save_path(self, model_name="", training_kwargs=None):
         model = self.train_stage1_model(**training_kwargs)
-        model_path = os.path.abspath(model_name)
+        model_path = os.path.abspath("models/" + model_name)
         model.save(model_path)
         return model_path

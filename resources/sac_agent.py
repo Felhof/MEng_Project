@@ -8,27 +8,14 @@ class SACAgent:
     ALPHA = 0.1
     BATCH_SIZE = 100
     DISCOUNT_RATE = 0.9
-    EPISODE_LENGTH = 1000
     NUM_ACTIONS = 4
-    TARGET_NETWORK_UPDATE_INTERVAL = 25
-    TRAINING_TIME = 600
 
     UP = 0
     RIGHT = 1
     DOWN = 2
     LEFT = 3
 
-    # Function to initialise the agent
     def __init__(self):
-        # Set the episode length
-        self.episode_length = self.EPISODE_LENGTH
-        # Reset the total number of steps which the agent has taken
-        self.num_steps_taken = 0
-        # The state variable stores the latest state of the agent in the environment
-        self.state = None
-        # The action variable stores the latest action which the agent has applied to the environment
-        self.discrete_action = None
-
         self.critic_local = Network(input_dimension=2, output_dimension=4)
         self.critic_local2 = Network(input_dimension=2, output_dimension=4)
         self.critic_optimiser = torch.optim.Adam(self.critic_local.parameters(), lr=0.001)
@@ -46,38 +33,14 @@ class SACAgent:
 
         self.replay_buffer = ReplayBuffer()
 
-    # Function to check whether the agent has reached the end of an episode
-    def has_finished_episode(self):
-        if self.num_steps_taken % self.episode_length == 0:
-            return True
-        else:
-            return False
-
-    # Function to get the next action, using whatever method you like
     def get_next_action(self, state):
         action_probabilities = self.get_action_probabilities(state)
         discrete_action = np.random.choice(range(self.NUM_ACTIONS), p=action_probabilities)
-
-        # Update the number of steps which the agent has taken
-        self.num_steps_taken += 1
-        # Store the state; this will be used later, when storing the transition
-        self.state = state
-        # Store the action; this will be used later, when storing the transition
-        self.discrete_action = discrete_action
-
         return discrete_action
 
-    # Function to set the next state and distance, which resulted from applying action self.action at state self.state
-    def set_next_state_and_reward(self, next_state, reward):
-        # Create a transition
-        transition = (self.state, self.discrete_action, reward, next_state)
-        # Now you can do something with this transition ...
+    def train_on_transition(self, state, discrete_action, next_state, reward):
+        transition = (state, discrete_action, reward, next_state)
         self.train_networks(transition)
-
-        if self.num_steps_taken % self.TARGET_NETWORK_UPDATE_INTERVAL == 0:
-            self.update_target_networks()
-
-        self.state = next_state
 
     def train_networks(self, transition):
         # Set all the gradients stored in the optimiser to zero.
@@ -148,7 +111,6 @@ class SACAgent:
         log_action_probabilities = torch.log(action_probabilities + z)
         return action_probabilities, log_action_probabilities
 
-    # Function to get the greedy action for a particular state
     def predict(self, state):
         action_probabilities = self.get_action_probabilities(state)
         discrete_action = np.argmax(action_probabilities)
@@ -177,23 +139,15 @@ class SACAgent:
         return torch.min(q_values, q_values2)
 
 
-# The Network class inherits the torch.nn.Module class, which represents a neural network.
 class Network(torch.nn.Module):
 
-    # The class initialisation function. This takes as arguments the dimension of the network's input (i.e. the
-    # dimension of the state), and the dimension of the network's output (i.e. the dimension of the action).
     def __init__(self, input_dimension, output_dimension, output_activation=torch.nn.Identity()):
-        # Call the initialisation function of the parent class.
         super(Network, self).__init__()
-        # Define the network layers. This example network has two hidden layers, each with 100 units.
         self.layer_1 = torch.nn.Linear(in_features=input_dimension, out_features=100)
         self.layer_2 = torch.nn.Linear(in_features=100, out_features=100)
         self.output_layer = torch.nn.Linear(in_features=100, out_features=output_dimension)
         self.output_activation = output_activation
 
-    # Function which sends some input data through the network and returns the network's output. In this example,
-    # a ReLU activation function is used for both hidden layers, but the output layer has no activation function (it
-    # is just a linear layer).
     def forward(self, input):
         layer_1_output = torch.nn.functional.relu(self.layer_1(input))
         layer_2_output = torch.nn.functional.relu(self.layer_2(layer_1_output))

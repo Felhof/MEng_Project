@@ -1,26 +1,21 @@
-import csv
 import os
 import time
 
 import numpy as np
-
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.callbacks import BaseCallback
 from tqdm.auto import tqdm
 
 
 class SavePerformanceOnCheckpoints(BaseCallback):
-    def __init__(self, stage1_time=0, checkpoints=None, resource_manager=None, n_eval_episodes=10000, name="",
+    def __init__(self, stage1_time=0, resource_manager=None, n_eval_episodes=10000, name="",
                  checkpoint_results=None, log_dir="/tmp/gym"):
         super(SavePerformanceOnCheckpoints, self).__init__()
         self.start_time = 0
         self.checkpoint_scores = []
         self.checkpoint_id = 0
         self.stage1_time = stage1_time
-        if checkpoints is None:
-            self.checkpoints = [4, 8, 12, 16, 20]
-        else:
-            self.checkpoints = checkpoints
+        self.checkpoints = checkpoint_results.checkpoints
         self.rm = resource_manager
         self.n_eval_episodes = n_eval_episodes
         self.name = name
@@ -70,24 +65,19 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         self.best_mean_reward = -np.inf
 
     def _init_callback(self) -> None:
-        # Create folder if needed
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
 
     def _on_step(self) -> bool:
-        # Retrieve training reward
         x, y = ts2xy(load_results(self.log_dir), 'timesteps')
         if len(x) > 0:
-            # Mean training reward over the last 100 episodes
             mean_reward = np.mean(y[-100:])
             if self.verbose > 0:
                 print("Num timesteps: {}".format(self.num_timesteps))
                 print("Best mean reward: {:.2f} - Last mean reward per episode: {:.2f}".format(self.best_mean_reward, mean_reward))
 
-            # New best model, you could save the agent here
             if mean_reward > self.best_mean_reward:
                 self.best_mean_reward = mean_reward
-                # Example for saving best model
                 if self.verbose > 0:
                     print("Saving new best model to {}".format(self.save_path))
                 self.model.save(self.save_path)
