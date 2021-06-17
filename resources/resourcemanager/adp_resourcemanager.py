@@ -92,14 +92,14 @@ class ADPResourceManager(BaseResourceManager):
             abstract_action.learn(total_timesteps=training_steps, callback=progress_callback)
 
         aa_name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
-        aa_path = os.path.abspath(aa_name)
+        aa_path = os.path.abspath("models/" + aa_name)
         abstract_action.save(aa_path)
 
         return aa_path
 
     def get_model_path(self, region_id):
         aa_name = "{0}_AA_for_region_{1}".format(self.model_name, region_id)
-        aa_path = os.path.abspath(aa_name)
+        aa_path = os.path.abspath("models/" + aa_name)
         return aa_path
 
     def train_adp_model(self, regional_policies=None, setup_start=0.):
@@ -129,3 +129,6 @@ class ADPResourceManager(BaseResourceManager):
                                                                       checkpoint_callback_every_1000_steps])
 
         self.save_episode_rewards_as_csv()
+
+        full_model_path = os.path.abspath("models/" + self.model_name + "_full_model")
+        adp_model.save(full_model_path)

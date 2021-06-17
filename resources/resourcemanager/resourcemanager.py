@@ -1,3 +1,5 @@
+import os
+
 from resources.resourcemanager.base_resourcemanager import BaseResourceManager
 
 from stable_baselines3.common.env_checker import check_env
@@ -27,22 +29,23 @@ class ResourceManager(BaseResourceManager):
 
     def train_model(self):
 
-        for _ in range(1):
 
-            auto_save_callback = SaveOnBestTrainingRewardCallback(log_dir=self.log_dir)
-            auto_save_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=auto_save_callback)
+        auto_save_callback = SaveOnBestTrainingRewardCallback(log_dir=self.log_dir)
+        auto_save_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=auto_save_callback)
 
-            self.environment = Monitor(self.environment, self.log_dir)
-            self.model = self.algorithm('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
+        self.environment = Monitor(self.environment, self.log_dir)
+        self.model = self.algorithm('MlpPolicy', self.environment, verbose=1, tensorboard_log=self.log_dir)
 
-            name = self.model_name + "_full_model"
-            checkpoint_callback = SavePerformanceOnCheckpoints(resource_manager=self, name=name,
-                                                               checkpoint_results=self.checkpoint_results)
-            checkpoint_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=checkpoint_callback)
+        name = self.model_name + "_full_model"
+        checkpoint_callback = SavePerformanceOnCheckpoints(resource_manager=self, name=name,
+                                                           checkpoint_results=self.checkpoint_results)
+        checkpoint_callback_every_1000_steps = EveryNTimesteps(n_steps=1000, callback=checkpoint_callback)
 
-            with ProgressBarManager(self.training_steps) as progress_callback:
-                self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback,
-                                                                                auto_save_callback_every_1000_steps,
-                                                                                checkpoint_callback_every_1000_steps])
+        with ProgressBarManager(self.training_steps) as progress_callback:
+            self.model.learn(total_timesteps=self.training_steps, callback=[progress_callback,
+                                                                            auto_save_callback_every_1000_steps,
+                                                                            checkpoint_callback_every_1000_steps])
 
         self.save_episode_rewards_as_csv()
+        model_path = os.path.abspath("models/" + name)
+        self.model.save(model_path)

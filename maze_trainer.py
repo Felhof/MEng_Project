@@ -1,12 +1,14 @@
+import multiprocessing as mp
+import time
+
+import argparse
+import matplotlib.pyplot as plt
+
 from resources.environments.gridworld.room_environment import RoomEnvironment
 from resources.environments.gridworld.maze_environment import MazeEnvironment
 from resources.environments.gridworld.geometry import Area, Rectangle, Point
 from resources.environments.gridworld.maze_model import MazeModel
 from resources.sac_agent import SACAgent
-
-import multiprocessing as mp
-import time
-import matplotlib.pyplot as plt
 
 
 SECONDS_PER_MINUTE = 60
@@ -151,7 +153,6 @@ three_rooms_one_area_maze_config = {
     "walls": [Rectangle(Point(0.3, 0.0), Point(0.4, 0.3)), Rectangle(Point(0.3, 0.5), Point(0.4, 1.0)),
               Rectangle(Point(0.6, 0.0), Point(0.7, 0.6)), Rectangle(Point(0.6, 0.8), Point(0.7, 1.0))]
 }
-
 
 
 three_rooms_three_areas_maze_config = {
@@ -320,4 +321,29 @@ maze_with_local_maxmimum_1_area = {
 
 
 if __name__ == "__main__":
-    main(three_rooms_three_areas_maze_config)
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('maze', type=str,
+                        help='The name of the maze configuration to solve. See maze_trainer.py for '
+                             'configurations. Example: 4-rooms-4-areas')
+
+    parser.add_argument('--i', type=str,
+                        help='How many models to train. The output will be an image showing the average of all '
+                             'policies.')
+
+    args = parser.parse_args()
+
+    maze_configurations = {
+        "3-rooms-1-area": three_rooms_one_area_maze_config,
+        "3-rooms-3-areas": three_rooms_three_areas_maze_config,
+        "4-rooms-1-area": four_rooms_one_area_maze_config,
+        "4-rooms-4-areas": four_rooms_four_areas_maze_config,
+        "maze_with_local_maxmimum_1_area": maze_with_local_maxmimum_1_area,
+        "maze_with_local_maxmimum_4_areas": maze_with_local_maxmimum_4_areas,
+    }
+
+    maze_config = maze_configurations[args.maze]
+
+    iterations = args.i if args.i is not None else 15
+
+    main(maze_config)

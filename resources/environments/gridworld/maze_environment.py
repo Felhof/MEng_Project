@@ -7,10 +7,6 @@ from resources.environments.gridworld.geometry import Room, Point
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-PINK = (230, 50, 210)
-
 
 class MazeEnvironment:
     AGENT_SIZE = 0.05

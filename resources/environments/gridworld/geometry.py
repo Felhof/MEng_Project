@@ -1,6 +1,9 @@
-from resources.environments.gridworld.maze_environment import RED, BLUE, PINK
-
 import numpy as np
+
+
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+PINK = (230, 50, 210)
 
 
 class Room:
